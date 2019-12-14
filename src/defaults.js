@@ -1,3 +1,5 @@
+import { Mill } from './utility.js';
+
 const default_onkeydown = (state, ev) => {
   ev.stopPropagation();
   switch (ev.keyCode) {
@@ -44,55 +46,37 @@ const default_onkeyup = (state, ev) => {
   }
 };
 
-const default_options = {
-  minimapScale: 10,
-  minimapPlayerColor: 'blue',
-  onkeydown: default_onkeydown,
-  onkeyup: default_onkeyup,
-  moveHandler: () => {},
-  drawHandler: () => {},
-  wallTextureAtlas: '',
-  wallTextureMapping: {},
-  floorCeilingTextureAtlas: '',
-  floorCeilingTextureMapping: {},
-  textureWidth: 64,
-  textureHeight: 64,
-  ceilingImage: undefined,
-  ceilingSolidColor: 'gray',
-  floorSolidColor: 'lightgray',
-  moveRate: 30,
-  screenWidth: 320,
-  screenHeight: 200,
-  screenElementWidth: 320 * 1.5,
-  screenElementHeight: 200 * 1.5,
-  stripWidth: 2,
-  fov: 60 * Math.PI / 180,
-  minDistToWall: 0.2,
-  spriteDrawOffsetX: 0.5,
-  spriteDrawOffsetY: 0.5
-};
-const is_opt = k => Object.keys(default_options).includes(k);
-
-const UnknownOptionError = class extends Error {
-  constructor(...args) {
-    super(...args);
-    Error.captureStackTrace(this, UnknownOptionError);
-  }
-}
-const sanity_check = name => {
-  if (!is_opt(name))
-    throw new UnknownOptionError(name);
-  return name;
-};
-
-const Config = class {
+const Config = class extends Mill {
   constructor(start = {}) {
-    this.bucket = {};
-    this.assign(default_options, start);
+    super({
+      minimapScale: 10,
+      minimapPlayerColor: 'blue',
+      onkeydown: default_onkeydown,
+      onkeyup: default_onkeyup,
+      moveHandler: () => {},
+      drawHandler: () => {},
+      wallTextureAtlas: '',
+      wallTextureMapping: {},
+      floorCeilingTextureAtlas: '',
+      floorCeilingTextureMapping: {},
+      textureWidth: 64,
+      textureHeight: 64,
+      ceilingImage: undefined,
+      ceilingSolidColor: 'gray',
+      floorSolidColor: 'lightgray',
+      moveRate: 30,
+      screenWidth: 320,
+      screenHeight: 200,
+      screenElementWidth: 320 * 1.5,
+      screenElementHeight: 200 * 1.5,
+      stripWidth: 2,
+      fov: 60 * Math.PI / 180,
+      minDistToWall: 0.2,
+      spriteDrawOffsetX: 0.5,
+      spriteDrawOffsetY: 0.5
+    });
+    this.assign(start);
   }
-  fetch(k) { return this.bucket[sanity_check(k)]; }
-  store(k, v) { this.bucket[sanity_check(k)] = v; }
-  assign(...objs) { objs.forEach(obj => Object.entries(obj).forEach(kv => this.store(...kv))); }
 };
 
 export { Config };

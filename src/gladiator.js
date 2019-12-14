@@ -1,54 +1,9 @@
+import { ge } from './utility.js';
 import { Config } from './defaults.js';
-
-const ge = {};
-
-// utilities
-ge.$ = id => document.getElementById(id);
-ge.create = tag => document.createElement(tag);
-ge.copyObject = (tar, src) => Object.assign(tar, src);
-ge.mergeObject = (o1, o2) => {
-    for (const attr in o1)
-        if(o2[attr] === undefined)
-            o2[attr] = o1[attr];
-};
-ge.cloneObject = o => Object.assign({}, o);
-ge.bind = (f, t, ...a) => (...x) => f.apply(t, a.concat(x));
+import { Player } from './Player.js';
 
 // Default Objects
 // ===============
-
-
-
-ge.default_initial_player_state = {
-    x : 2,  // Player x position
-    y : 2,  // Player y position
-
-    dir : 0,  // Turning direction (-1 for left, 1 for right, 0 no turning)
-    rot : 0,  // Angle of rotation
-    rotSpeed : Math.PI / 180,  // Current rotation speed for each
-                                   // step (in radians) - the rotation
-                                   // increases over time with default event handler
-    maxRotSpeed   : 7 * Math.PI / 180,   // Max rotation speed
-    minRotSpeed   : 2 * Math.PI / 180,   // Min rotation speed
-    deltaRotSpeed : function(rotSpeed) { // Function to increase rotation speed
-        return rotSpeed * 3;
-    },
-
-    speed     : 0,    // Moving direction (1 forward, -1 backwards, 0 no movement)
-    strafe    : 0,    // Strafing direction of player (-1 left, 1 right, 0 no movement)
-    moveSpeed : 0.21, // Move speed for each step
-
-    crossHairSize : 1, // How many pixels constitute "middle" of the screen
-                       // (used for hit detection)
-
-    // Values set by the engine (updated every draw cycle)
-    // ===================================================
-
-    playerCrosshairHit : [],// List of sprites which are in
-                            // the players cross hair
-    spriteDistances :    {} // Object which holds all sprite ids
-                            // mapped to their distance to the player
-};
 
 ge.default_initial_sprite_state = {
     id : "", // A unique ID
