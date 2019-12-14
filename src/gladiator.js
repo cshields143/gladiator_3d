@@ -1,3 +1,5 @@
+import { Config } from './defaults.js';
+
 const ge = {};
 
 // utilities
@@ -14,124 +16,8 @@ ge.bind = (f, t, ...a) => (...x) => f.apply(t, a.concat(x));
 
 // Default Objects
 // ===============
-ge.default_eventHandler = {
-    onkeydown : function(state, e) {
-        e = e || window.event;
-        switch (e.keyCode) {
-            case 38: state.player.speed =  1; break; // Move forward
-            case 40: state.player.speed = -1; break; // Move backward
-            case 39:
-                if (e.ctrlKey || e.shiftKey) {
-                    state.player.strafe =  1; // Strafe right
-                } else {
-                    state.player.dir =  1;    // Rotate right
-                    if (state.player.rotSpeed < state.player.maxRotSpeed) {
-                        state.player.rotSpeed = state.player.deltaRotSpeed(
-                                                    state.player.rotSpeed);
-                    }
-                }
-                break;
-            case 37:
-                if (e.ctrlKey || e.shiftKey) {
-                    state.player.strafe = -1; // Strafe left
-                } else {
-                    state.player.dir = -1;    // Rotate left
-                    if (state.player.rotSpeed < state.player.maxRotSpeed) {
-                        state.player.rotSpeed = state.player.deltaRotSpeed(
-                                                    state.player.rotSpeed);
-                    }
-                }
-                break;
-        }
 
-        ge.default_eventHandler.stopBubbleEvent(e);
-    },
 
-    onkeyup : function(state, e) {
-        e = e || window.event;
-        switch (e.keyCode) {
-            case 38: case 40: state.player.speed = 0; break; // Stop moving
-            case 37: case 39:
-                // Stop rotating and strafing
-                state.player.dir = 0;
-                state.player.strafe = 0;
-                state.player.rotSpeed = state.player.minRotSpeed;
-                break;
-        }
-
-        ge.default_eventHandler.stopBubbleEvent(e);
-    },
-
-    // Stop the bubbling of an event
-    stopBubbleEvent : function (e) {
-        e = e ? e:window.event;
-        if (e.stopPropagation) {
-            e.stopPropagation();
-        }
-        if (e.cancelBubble !== null) {
-            e.cancelBubble = true;
-        }
-    }
-};
-
-ge.default_options = {
-
-    // Scale of the minimap
-    minimapScale       : 10,
-    minimapPlayerColor : "blue",
-
-    // Handler functions (registered on MainController construction)
-    // =============================================================
-    eventHandler : ge.default_eventHandler, // Key event handler
-
-    // The following handler functions get the current game state object and
-    // a list of all sprites ordered by distance to the player (far to near);
-
-    moveHandler  : function (state, sprites) {},      // Handler called after each move
-    drawHandler  : function (ctx, state, sprites) {}, // Handler called after each draw
-                                                      // (gets also the draw context)
-
-    // Texture options
-    // ===============
-
-    wallTextureAtlas   : "",
-    wallTextureMapping : {},
-    floorCeilingTextureAtlas   : "",
-    floorCeilingTextureMapping : {},
-    textureWidth  : 64,
-    textureHeight : 64,
-
-    ceilingImage          : undefined,    // Ceiling image
-    ceilingSolidColor     : "gray",       // Ceiling solid color
-    floorSolidColor       : "lightgray",  // Floor solid color
-
-    // Rendering options
-    // =================
-
-    // Constant rate for moving
-    moveRate       : 30,
-
-    // View screen (projection plane) width
-    screenWidth   : 320,
-    screenHeight  : 200,
-
-    screenElementWidth   : 320 * 1.5,
-    screenElementHeight  : 200 * 1.5,
-
-    // Width of each strip
-    stripWidth    : 2,
-
-    // Field of vision
-    // Calculated by converting degrees in radians
-    fov           : 60 * Math.PI / 180,
-
-    // Min wall distance for player and sprites
-    minDistToWall : 0.2,
-
-    // The offset moves the sprite into the center of a tile
-    spriteDrawOffsetX : 0.5,
-    spriteDrawOffsetY : 0.5
-};
 
 ge.default_initial_player_state = {
     x : 2,  // Player x position
@@ -209,15 +95,14 @@ ge.default_initial_sprite_state = {
 const iniImg = src => { const i = new Image(); i.src = src; return i; };
 const gettime = () => (new Date()).getTime();
 ge.MainController = class {
-    constructor(screen_id, minimap_id, options, debug_output_element) {
+    constructor(screen_id, minimap_id, debug_output_element, options = {}) {
         this.running = true;
         this._state = {};
         this._sprites = [];
         this._screen = ge.$(screen_id);
         this._ctx = this._screen.getContext('2d');
         this._minimap = ge.$(minimap_id);
-        this._options = ge.cloneObject(ge.default_options);
-        if (options) ge.copyObject(options, this._options);
+        this._options = new Config(options);
         this._debug = ge.$(debug_output_element);
         this._wallTextureAtlas = iniImg(this._options.wallTextureAtlas);
         this._floorCeilingTextureAtlas = iniImg(this._options.floorCeilingTextureAtlas);
