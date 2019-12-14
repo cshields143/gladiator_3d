@@ -5,6 +5,31 @@ import { Sprite } from './Sprite.js';
 
 const iniImg = src => { const i = new Image(); i.src = src; return i; };
 const gettime = () => (new Date()).getTime();
+const fov_floor_weight_table = {
+    10: 5.5,
+    20: 2.8,
+    30: 1.85,
+    40: 1.35,
+    45: 1.15,
+    50: 1,
+    55: 0.95,
+    60: 0.85,
+    65: 0.75,
+    70: 0.65,
+    75: 0.6,
+    80: 0.55,
+    85: 0.5,
+    90: 0.45,
+    95: 0.4,
+    100: 0.35,
+    110: 0.3,
+    120: 0.25,
+    130: 0.2,
+    140: 0.15,
+    150: 0.12,
+    160: 0.08,
+    170: 0.03
+};
 
 ge.MainController = class {
     constructor(screen_id, minimap_id, debug_output_element, options = {}) {
@@ -31,10 +56,10 @@ ge.MainController = class {
         this._lastMoveLoopTime = undefined;
         let match = 999;
         let fov_degrees = 180 * this._options.fetch('fov') / Math.PI;
-        for (let fov_key in ge.MainController.FOV_FLOOR_WEIGHT_TABLE) {
+        for (let fov_key in fov_floor_weight_table) {
             const new_match = Math.abs(fov_key - fov_degrees);
             if (new_match < match) {
-                this._fovFloorWeight = ge.MainController.FOV_FLOOR_WEIGHT_TABLE[fov_key];
+                this._fovFloorWeight = fov_floor_weight_table[fov_key];
                 match = new_match;
             }
             if (match === 0) break;
@@ -232,8 +257,8 @@ ge.MainController = class {
             const rayViewLength = Math.sqrt(rayScreenPos * rayScreenPos + viewDistSquare);
             let rayAngle = Math.asin(rayScreenPos / rayViewLength);
             rayAngle = this._state.player.fetch('rot') + rayAngle;
-            rayAngle %= ge.MainController.TWO_PI;
-            if (rayAngle < 0) rayAngle += ge.MainController.TWO_PI;
+            rayAngle %= Math.PI * 2;
+            if (rayAngle < 0) rayAngle += Math.PI * 2;
             const res = this.castSingleRay(rayAngle, i);
             const dist = res[0] * Math.cos(this._state.player.fetch('rot') - rayAngle);
             distArray.push(dist);
@@ -356,8 +381,8 @@ ge.MainController = class {
         this._state.player.store('playerCrosshairHit', playerCrosshairHit);
     }
     castSingleRay(rayAngle, stripIdx) {
-        const right = (rayAngle > ge.MainController.TWO_PI * 0.75 ||
-                       rayAngle < ge.MainController.TWO_PI * 0.25);
+        const right = (rayAngle > Math.PI * 1.5 ||
+                       rayAngle < Math.PI * 0.5);
         const up = (rayAngle < 0 || rayAngle > Math.PI);
         const v_x = Math.cos(rayAngle);
         const v_y = Math.sin(rayAngle);
@@ -497,9 +522,9 @@ ge.MainController = class {
         const screenHeight = this._options.fetch('screenHeight');
         const screenWidth = this._options.fetch('screenWidth');
         let xoffset = this._state.player.fetch('rot');
-        xoffset %= ge.MainController.TWO_PI;
-        if (xoffset < 0) xoffset += ge.MainController.TWO_PI;
-        let rot = xoffset * (img.width / ge.MainController.TWO_PI);
+        xoffset %= Math.PI * 2;
+        if (xoffset < 0) xoffset += Math.PI * 2;
+        let rot = xoffset * (img.width / (Math.PI * 2));
         if (rot + skyWidth > img.width) {
             leftOverWidth = rot + skyWidth - img.width;
             skyWidth -= leftOverWidth;
@@ -526,31 +551,4 @@ ge.MainController = class {
         ctx.closePath();
         ctx.stroke();
     }
-};
-
-ge.MainController.TWO_PI = Math.PI * 2;
-ge.MainController.FOV_FLOOR_WEIGHT_TABLE = {
-    10: 5.5,
-    20: 2.8,
-    30: 1.85,
-    40: 1.35,
-    45: 1.15,
-    50: 1,
-    55: 0.95,
-    60: 0.85,
-    65: 0.75,
-    70: 0.65,
-    75: 0.6,
-    80: 0.55,
-    85: 0.5,
-    90: 0.45,
-    95: 0.4,
-    100: 0.35,
-    110: 0.3,
-    120: 0.25,
-    130: 0.2,
-    140: 0.15,
-    150: 0.12,
-    160: 0.08,
-    170: 0.03
 };
