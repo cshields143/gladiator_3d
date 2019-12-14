@@ -1,54 +1,11 @@
 import { ge } from './utility.js';
-import { Config } from './defaults.js';
+import { Config } from './Config.js';
 import { Player } from './Player.js';
+import { Sprite } from './Sprite.js';
 
-// Default Objects
-// ===============
-
-ge.default_initial_sprite_state = {
-    id : "", // A unique ID
-    x : 2,   // Sprite x position
-    y : 2,   // Sprite y position
-
-    isMoving       : false,
-    drawOnMinimap : false,
-    minimapColor   : "red",
-
-    dir : 0,  // Turning direction (-1 for left, 1 for right, 0 no turning)
-    rot : 0,  // Angle of rotation
-    rotSpeed : 6 * Math.PI / 180,  // Rotation speed for each step (in radians)
-
-    speed     : 0,    // Moving direction (1 forward, -1 backwards, 0 no movement)
-    strafe    : 0,    // Strafing direction of player (-1 left, 1 right, 0 no movement)
-    moveSpeed : 0.05, // Move speed for each step
-
-    // Texture options
-    // ===============
-
-    spriteAtlas   : "", // Sprite image atlas
-    spriteOffsetX : 0,  // Sprite offset on sprite atlas
-    spriteOffsetY : 0,  // Sprite offset on sprite atlas
-    spriteWidth   : 64, // Sprite size on sprite atlas
-    spriteHeight  : 64, // Sprite size on sprite atlas
-    spriteScaleX  : 1,  // Scale X of sprite
-    spriteScaleY  : 1,  // Scale Y of sprite
-
-    // Values set by the engine (updated every draw cycle)
-    // ===================================================
-
-    hitList          : [],       // List which contains which part of the
-                                 // sprite are visible to the player
-                                 // Each item is a list of 4 values:
-                                 // Atlas x and size and Screen x and Size
-    playerCrossHair  : undefined,// Which part of the sprite is in the players
-                                 // cross hair (x pos on sprite atlas image)
-    spriteAtlasImage : undefined // Sprite atlas image object
-};
-
-// Main Controller
-// ===============
 const iniImg = src => { const i = new Image(); i.src = src; return i; };
 const gettime = () => (new Date()).getTime();
+
 ge.MainController = class {
     constructor(screen_id, minimap_id, debug_output_element, options = {}) {
         this.running = true;
@@ -106,11 +63,9 @@ ge.MainController = class {
         this.running = false;
         this.deRegisterEventHandlers();
     }
-    addSprite(initial_sprite_state) {
-        const sprite_state = ge.cloneObject(ge.default_initial_sprite_state);
-        if (initial_sprite_state)
-            ge.copyObject(sprite_state, initial_sprite_state);
-        sprite_state.spriteAtlasImage = iniImg(sprite_state.spriteAtlas);
+    addSprite(initial_sprite_state = {}) {
+        const sprite_state = new Sprite(initial_sprite_state);
+        sprite_state.spriteAtlasImage = iniImg(sprite_state.fetch('spriteAtlas'));
         this._sprites.push(sprite_state);
     }
     printDebug(str) {
@@ -135,7 +90,7 @@ ge.MainController = class {
         if (isNaN(timeCorrection)) timeCorrection = 1;
         this.moveEntity(timeCorrection, player);
         for (let i = 0; i < this._sprites.length; i++)
-            if (this._sprites[i].isMoving)
+            if (this._sprites[i].fetch('isMoving'))
                 this.moveEntity(timeCorrection, this._sprites[i]);
     }
     moveEntity(timeCorrection, entity) {
@@ -289,20 +244,20 @@ ge.MainController = class {
         const spriteOffsetY = this._options.fetch('spriteDrawOffsetY');
         const sprite_dists = {};
         const getDistanceToPlayer = ge.bind(sprite => {
-            const sdx = sprite.x - this._state.player.fetch('x') - spriteOffsetX;
-            const sdy = sprite.y - this._state.player.fetch('y') - spriteOffsetY;
+            const sdx = sprite.fetch('x') - this._state.player.fetch('x') - spriteOffsetX;
+            const sdy = sprite.fetch('y') - this._state.player.fetch('y') - spriteOffsetY;
             return Math.sqrt(sdx * sdx + sdy * sdy);
         }, this);
         if (this._sprites.length === 1)
-            sprite_dists[this._sprites[0].id] = getDistanceToPlayer(this._sprites[0]);
+            sprite_dists[this._sprites[0].fetch('id')] = getDistanceToPlayer(this._sprites[0]);
         else {
             this._sprites.sort((sprite1, sprite2) => {
-                if (sprite_dists[sprite1.id] === undefined)
-                    sprite_dists[sprite1.id] = getDistanceToPlayer(sprite1);
-                if (sprite_dists[sprite2.id] === undefined)
-                    sprite_dists[sprite2.id] = getDistanceToPlayer(sprite2);
-                const sd1 = sprite_dists[sprite1.id];
-                const sd2 = sprite_dists[sprite2.id];
+                if (sprite_dists[sprite1.fetch('id')] === undefined)
+                    sprite_dists[sprite1.fetch('id')] = getDistanceToPlayer(sprite1);
+                if (sprite_dists[sprite2.fetch('id')] === undefined)
+                    sprite_dists[sprite2.fetch('id')] = getDistanceToPlayer(sprite2);
+                const sd1 = sprite_dists[sprite1.fetch('id')];
+                const sd2 = sprite_dists[sprite2.fetch('id')];
                 return sd2 - sd1;
             });
         }
@@ -312,12 +267,12 @@ ge.MainController = class {
         const playerCrosshairHit = [];
         for (let i = 0; i < this._sprites.length; i++) {
             const sprite = this._sprites[i];
-            const distSprite = sprite_dists[sprite.id];
-            let xSprite = sprite.x - spriteOffsetX;
-            let ySprite = sprite.y - spriteOffsetY;
-            if (this._minimapObjects && sprite.drawOnMinimap) {
+            const distSprite = sprite_dists[sprite.fetch('id')];
+            let xSprite = sprite.fetch('x') - spriteOffsetX;
+            let ySprite = sprite.fetch('y') - spriteOffsetY;
+            if (this._minimapObjects && sprite.fetch('drawOnMinimap')) {
                 const ctx = this._minimapObjects.getContext('2d');
-                ctx.fillStyle = sprite.minimapColor;
+                ctx.fillStyle = sprite.fetch('minimapColor');
                 ctx.fillRect(
                     xSprite * this._options.fetch('minimapScale'),
                     ySprite * this._options.fetch('minimapScale'),
@@ -333,43 +288,44 @@ ge.MainController = class {
             const screenHeight = this._options.fetch('screenHeight');
             let x = Math.floor(
                 screenWidth / 2 + Math.tan(spriteAngle) *
-                this._viewDist - size * sprite.spriteScaleX / 2
+                this._viewDist - size * sprite.fetch('spriteScaleX') / 2
             );
             let y = Math.floor(
-                screenHeight / 2 - (0.55 + sprite.spriteScaleY - 1) * size
+                screenHeight / 2 - (0.55 + sprite.fetch('spriteScaleY') - 1) * size
             );
-            const sx = Math.floor(size * sprite.spriteScaleX);
-            const sy = Math.ceil(sprite.spriteHeight * 0.01 * size) +
-                (0.45 + sprite.spriteScaleY - 1) * size;
+            const sx = Math.floor(size * sprite.fetch('spriteScaleX'));
+            const sy = Math.ceil(sprite.fetch('spriteHeight') * 0.01 * size) +
+                (0.45 + sprite.fetch('spriteScaleY') - 1) * size;
             const ctx = this._ctx;
             const stripWidth = this._options.fetch('stripWidth');
             const drawSprite = (tx, tw, sx, sw) => {
                 if (tw <= 0 || sw <= 0) return;
                 ctx.drawImage(
-                    sprite.spriteAtlasImage,
+                    sprite.fetch('spriteAtlasImage'),
                     tx,
-                    sprite.spriteOffsetY,
+                    sprite.fetch('spriteOffsetY'),
                     tw,
-                    sprite.spriteHeight,
+                    sprite.fetch('spriteHeight'),
                     sx, y, sw, sy
                 );
                 if (sx <= screenMiddle + crossHairSize - 1 && sx + sw >= screenMiddle - crossHairSize + 1) {
-                    sprite.playerCrossHair = (screenMiddle - sx) * tw / sw;
+                    sprite.store('playerCrossHair', (screenMiddle - sx) * tw / sw);
                     playerCrosshairHit.push(sprite);
                 }
             };
-            const tx = sprite.spriteOffsetX;
-            const ts = sprite.spriteWidth;
+            const tx = sprite.fetch('spriteOffsetX');
+            const ts = sprite.fetch('spriteWidth');
             let cumulativeDS = 0;
             let cumulativeTS = 0;
             const strips = sx / stripWidth;
             let drawing = false;
             let execute_draw = false;
-            sprite.hitList = [];
+            sprite.store('hitList', []);
             for (let j = 0; j < strips; j++) {
                 cumulativeDS += stripWidth;
-                cumulativeTS += Math.floor(cumulativeDS * sprite.spriteWidth / sx);
-                cumulativeTS = cumulativeTS > sprite.spriteWidth ? sprite.spriteWidth : cumulativeTS;
+                cumulativeTS += Math.floor(cumulativeDS * sprite.fetch('spriteWidth') / sx);
+                cumulativeTS = cumulativeTS > sprite.fetch('spriteWidth') ?
+                    sprite.fetch('spriteWidth') : cumulativeTS;
                 const distIndex = Math.floor((x + cumulativeDS) * distArray.length / screenWidth);
                 const distWall = distArray[distIndex];
                 const distDelta = distWall - distSprite;
@@ -387,12 +343,12 @@ ge.MainController = class {
                 }
                 if (execute_draw) {
                     drawSprite(tx, cumulativeTS, x, cumulativeDS);
-                    sprite.hitList.push([tx, cumulativeTS, x, cumulativeDS]);
+                    sprite.fetch('hitList').push([tx, cumulativeTS, x, cumulativeDS]);
                     execute_draw = false;
                     drawing = false;
                 } else if (j + 1 >= strips && drawing) {
                     drawSprite(tx, cumulativeTS, x, cumulativeDS);
-                    sprite.hitList.push([tx, cumulativeTS, x, cumulativeDS]);
+                    sprite.fetch('hitList').push([tx, cumulativeTS, x, cumulativeDS]);
                     break;
                 }
             }
