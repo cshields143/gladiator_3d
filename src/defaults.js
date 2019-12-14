@@ -44,61 +44,34 @@ const default_onkeyup = (state, ev) => {
   }
 };
 
-const option_names = [
-  'minmapScale',
-  'minimapPlayerColor',
-  'onkeydown',
-  'onkeyup',
-  'moveHandler',
-  'drawHandler',
-  'wallTextureAtlas',
-  'wallTextureMapping',
-  'floorCeilingTextureAtlas',
-  'floorCeilingTextureMapping',
-  'textureWidth',
-  'textureHeight',
-  'ceilingImage',
-  'ceilingSolidColor',
-  'floorSolidColor',
-  'moveRate',
-  'screenWidth',
-  'screenHeight',
-  'screenElementWidth',
-  'screenElementHeight',
-  'stripWidth',
-  'fov',
-  'minDistToWall',
-  'spriteDrawOffsetX',
-  'spriteDrawOffsetY'
-];
-
-const option_defaults = [
-  10,
-  'blue',
-  default_onkeydown,
-  default_onkeyup,
-  () => {},
-  () => {},
-  '',
-  {},
-  '',
-  {},
-  64,
-  64,
-  undefined,
-  'grey',
-  'lightgrey',
-  30,
-  320,
-  200,
-  320 * 1.5,
-  200 * 1.5,
-  2,
-  60 * Math.PI / 180,
-  0.2,
-  0.5,
-  0.5
-];
+const default_options = {
+  minimapScale: 10,
+  minimapPlayerColor: 'blue',
+  onkeydown: default_onkeydown,
+  onkeyup: default_onkeyup,
+  moveHandler: () => {},
+  drawHandler: () => {},
+  wallTextureAtlas: '',
+  wallTextureMapping: {},
+  floorCeilingTextureAtlas: '',
+  floorCeilingTextureMapping: {},
+  textureWidth: 64,
+  textureHeight: 64,
+  ceilingImage: undefined,
+  ceilingSolidColor: 'gray',
+  floorSolidColor: 'lightgray',
+  moveRate: 30,
+  screenWidth: 320,
+  screenHeight: 200,
+  screenElementWidth: 320 * 1.5,
+  screenElementHeight: 200 * 1.5,
+  stripWidth: 2,
+  fov: 60 * Math.PI / 180,
+  minDistToWall: 0.2,
+  spriteDrawOffsetX: 0.5,
+  spriteDrawOffsetY: 0.5
+};
+const is_opt = k => Object.keys(default_options).includes(k);
 
 const UnknownOptionError = class extends Error {
   constructor(...args) {
@@ -107,7 +80,7 @@ const UnknownOptionError = class extends Error {
   }
 }
 const sanity_check = name => {
-  if (!option_names.includes(name))
+  if (!is_opt(name))
     throw new UnknownOptionError(name);
   return name;
 };
@@ -115,22 +88,11 @@ const sanity_check = name => {
 const Config = class {
   constructor(start = {}) {
     this.bucket = {};
-    for (let i = 0, l = option_names.length; i < l; i++) {
-      const name = option_names[i];
-      const val = option_defaults[i];
-      this.store(name, val);
-    }
-    this.assign(start);
+    this.assign(default_options, start);
   }
   fetch(k) { return this.bucket[sanity_check(k)]; }
   store(k, v) { this.bucket[sanity_check(k)] = v; }
-  assign(obj) {
-    for (let i = 0, l = option_names.length; i < l; i++) {
-      const name = option_names[i];
-      if (obj[name] !== undefined)
-        this.store(name, obj[name]);
-    }
-  }
+  assign(...objs) { objs.forEach(obj => Object.entries(obj).forEach(kv => this.store(...kv))); }
 };
 
 export { Config };
