@@ -254,16 +254,16 @@ ge.MainController = class {
         const ctx = minimapObjects.getContext('2d');
         ctx.fillStyle = options.fetch('minimapPlayerColor');
         ctx.fillRect(
-            player.x * minimapScale - 2,
-            player.y * minimapScale - 2,
+            player.fetch('x') * minimapScale - 2,
+            player.fetch('y') * minimapScale - 2,
             4, 4
         );
         ctx.strokeStyle = options.fetch('minimapPlayerColor');
         ctx.beginPath();
-        ctx.moveTo(player.x * minimapScale, player.y * minimapScale);
+        ctx.moveTo(player.fetch('x') * minimapScale, player.fetch('y') * minimapScale);
         ctx.lineTo(
-            (player.x + Math.cos(player.rot)) * minimapScale,
-            (player.y + Math.sin(player.rot)) * minimapScale
+            (player.fetch('x') + Math.cos(player.fetch('rot'))) * minimapScale,
+            (player.fetch('y') + Math.sin(player.fetch('rot'))) * minimapScale
         );
         ctx.closePath();
         ctx.stroke();
@@ -276,11 +276,11 @@ ge.MainController = class {
             const rayScreenPos = (leftmostRayPos + i) * this._options.fetch('stripWidth');
             const rayViewLength = Math.sqrt(rayScreenPos * rayScreenPos + viewDistSquare);
             let rayAngle = Math.asin(rayScreenPos / rayViewLength);
-            rayAngle = this._state.player.rot + rayAngle;
+            rayAngle = this._state.player.fetch('rot') + rayAngle;
             rayAngle %= ge.MainController.TWO_PI;
             if (rayAngle < 0) rayAngle += ge.MainController.TWO_PI;
             const res = this.castSingleRay(rayAngle, i);
-            const dist = res[0] * Math.cos(this._state.player.rot - rayAngle);
+            const dist = res[0] * Math.cos(this._state.player.fetch('rot') - rayAngle);
             distArray.push(dist);
             this.drawStrip(i, dist, res[1], res[2], res[3], res[4], rayAngle);
         }
@@ -289,8 +289,8 @@ ge.MainController = class {
         const spriteOffsetY = this._options.fetch('spriteDrawOffsetY');
         const sprite_dists = {};
         const getDistanceToPlayer = ge.bind(sprite => {
-            const sdx = sprite.x - this._state.player.x - spriteOffsetX;
-            const sdy = sprite.y - this._state.player.y - spriteOffsetY;
+            const sdx = sprite.x - this._state.player.fetch('x') - spriteOffsetX;
+            const sdy = sprite.y - this._state.player.fetch('y') - spriteOffsetY;
             return Math.sqrt(sdx * sdx + sdy * sdy);
         }, this);
         if (this._sprites.length === 1)
@@ -306,8 +306,8 @@ ge.MainController = class {
                 return sd2 - sd1;
             });
         }
-        this._state.player.spriteDistances = sprite_dists;
-        const crossHairSize = this._state.player.crossHairSize;
+        this._state.player.store('spriteDistances', sprite_dists);
+        const crossHairSize = this._state.player.fetch('crossHairSize');
         const screenMiddle = this._screenMiddle;
         const playerCrosshairHit = [];
         for (let i = 0; i < this._sprites.length; i++) {
@@ -324,9 +324,9 @@ ge.MainController = class {
                     4, 4
                 );
             }
-            xSprite = xSprite - this._state.player.x;
-            ySprite = ySprite - this._state.player.y;
-            const spriteAngle = Math.atan2(ySprite, xSprite) - this._state.player.rot;
+            xSprite = xSprite - this._state.player.fetch('x');
+            ySprite = ySprite - this._state.player.fetch('y');
+            const spriteAngle = Math.atan2(ySprite, xSprite) - this._state.player.fetch('rot');
             const size = this._viewDist / (Math.cos(spriteAngle) * distSprite);
             if (size <= 0) continue;
             const screenWidth = this._options.fetch('screenWidth');
@@ -397,7 +397,7 @@ ge.MainController = class {
                 }
             }
         }
-        this._state.player.playerCrosshairHit = playerCrosshairHit;
+        this._state.player.store('playerCrosshairHit', playerCrosshairHit);
     }
     castSingleRay(rayAngle, stripIdx) {
         const right = (rayAngle > ge.MainController.TWO_PI * 0.75 ||
@@ -408,8 +408,10 @@ ge.MainController = class {
         const slope_v = v_y / v_x;
         const dx_v = right ? 1 : -1;
         const dy_v = dx_v * slope_v;
-        let x_v = right ? Math.ceil(this._state.player.x) : Math.floor(this._state.player.x);
-        let y_v = this._state.player.y + (x_v - this._state.player.x) * slope_v;
+        let x_v = right ?
+            Math.ceil(this._state.player.fetch('x')) :
+            Math.floor(this._state.player.fetch('x'));
+        let y_v = this._state.player.fetch('y') + (x_v - this._state.player.fetch('x')) * slope_v;
         let do_v = true;
         let dist_v = -1;
         let xHit_v = 0;
@@ -418,8 +420,10 @@ ge.MainController = class {
         const slope_h = v_x / v_y;
         const dy_h = up ? -1 : 1;
         const dx_h = dy_h * slope_h;
-        let y_h = up ? Math.floor(this._state.player.y) : Math.ceil(this._state.player.y);
-        let x_h = this._state.player.x + (y_h - this._state.player.y) * slope_h;
+        let y_h = up ?
+            Math.floor(this._state.player.fetch('y')) :
+            Math.ceil(this._state.player.fetch('y'));
+        let x_h = this._state.player.fetch('x') + (y_h - this._state.player.fetch('y')) * slope_h;
         let do_h = true;
         let dist_h = -1;
         let xHit_h = 0;
@@ -436,8 +440,8 @@ ge.MainController = class {
                 wally_v = Math.floor(y_v);
                 wallType_v = this._state.map[wally_v][wallx_v];
                 if (wallType_v) {
-                    distx = x_v - this._state.player.x;
-                    disty = y_v - this._state.player.y;
+                    distx = x_v - this._state.player.fetch('x');
+                    disty = y_v - this._state.player.fetch('y');
                     dist_v = distx * distx + disty * disty;
                     xHit_v = x_v;
                     yHit_v = y_v;
@@ -454,8 +458,8 @@ ge.MainController = class {
                 wallx_h = Math.floor(x_h);
                 wallType_h = this._state.map[wally_h][wallx_h];
                 if (wallType_h) {
-                    distx = x_h - this._state.player.x;
-                    disty = y_h - this._state.player.y;
+                    distx = x_h - this._state.player.fetch('x');
+                    disty = y_h - this._state.player.fetch('y');
                     dist_h = distx * distx + disty * disty;
                     xHit_h = x_h;
                     yHit_h = y_h;
@@ -497,13 +501,13 @@ ge.MainController = class {
         const fheight = (screenHeight - height) / 2;
         const foffset = y + height;
         const fweight = (this._options.fetch('screenWidth') / screenHeight) * this._fovFloorWeight;
-        const vx = (hitX - this._state.player.x) / dist;
-        const vy = (hitY - this._state.player.y) / dist;
+        const vx = (hitX - this._state.player.fetch('x')) / dist;
+        const vy = (hitY - this._state.player.fetch('y')) / dist;
         const bottom = foffset + fheight;
         for (let fy = 0; fy < fheight; fy++) {
             const currentDist = bottom / (2 * (fy + foffset) - bottom);
-            const wx = this._state.player.x + vx * currentDist * fweight;
-            const wy = this._state.player.y + vy * currentDist * fweight;
+            const wx = this._state.player.fetch('x') + vx * currentDist * fweight;
+            const wy = this._state.player.fetch('y') + vy * currentDist * fweight;
             const mx = Math.floor(wx);
             const my = Math.floor(wy);
             const floorType = this._state.map[my][mx];
@@ -536,7 +540,7 @@ ge.MainController = class {
         const ctx = this._ctx;
         const screenHeight = this._options.fetch('screenHeight');
         const screenWidth = this._options.fetch('screenWidth');
-        let xoffset = this._state.player.rot;
+        let xoffset = this._state.player.fetch('rot');
         xoffset %= ge.MainController.TWO_PI;
         if (xoffset < 0) xoffset += ge.MainController.TWO_PI;
         let rot = xoffset * (img.width / ge.MainController.TWO_PI);
@@ -556,8 +560,8 @@ ge.MainController = class {
         ctx.lineWidth = 0.5;
         ctx.beginPath();
         ctx.moveTo(
-            this._state.player.x * this._options.fetch('minimapScale'),
-            this._state.player.y * this._options.fetch('minimapScale')
+            this._state.player.fetch('x') * this._options.fetch('minimapScale'),
+            this._state.player.fetch('y') * this._options.fetch('minimapScale')
         );
         ctx.lineTo(
             rayX * this._options.fetch('minimapScale'),
