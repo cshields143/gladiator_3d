@@ -1,4 +1,4 @@
-import { iniimg, EventHandler } from './classes/utility.js';
+import { iniimg, EventHandler, AnimLooper } from './classes/utility.js';
 import { Config } from './classes/Config.js';
 import { Player } from './classes/Player.js';
 import { Sprite } from './classes/Sprite.js';
@@ -34,6 +34,17 @@ const Main = class {
     constructor(litmap, root, screen_el, minimap_el, options = {}, player_opts = {}) {
         this.running = true;
         this.root = root;
+        this.mover = new AnimLooper((now, then) => {
+            this.move(then === null ? 0 : now - then);
+            return this.running;
+        });
+        this.drawer = new AnimLooper(() => {
+            this._ctx.clearRect(0, 0, this._screen.width, this._screen.height);
+            this.updateMiniMap();
+            this.drawSimpleCeilingAndGround();
+            this.castRays();
+            return this.running;
+        });
         this._state = new Game(litmap, player_opts);
         this._screen = screen_el;
         this._ctx = this._screen.getContext('2d');
@@ -77,39 +88,30 @@ const Main = class {
         this.running = true;
         this.registerEventHandlers();
         this.drawMiniMap();
-        this.drawLoop();
-        this.moveLoop();
+        this.drawer.start();
+        this.mover.start();
     }
     stop() {
         this.running = false;
         this.deRegisterEventHandlers();
-    }
-    moveLoop() {
-        const moveLoopTime = gettime();
-        const timeDelta = this._lastMoveCycleTime === undefined ?
-            0 : moveLoopTime - this._lastMoveCycleTime;
-        this.move(timeDelta);
-        let nextMoveLoopTime = 1000 / this._options.fetch('moveRate');
-        if (timeDelta > nextMoveLoopTime)
-            nextMoveLoopTime = Math.max(1, nextMoveLoopTime - (timeDelta - nextMoveLoopTime));
-        this._lastMoveCycleTime = moveLoopTime;
-        if (this.running)
-            setTimeout(this.moveLoop.bind(this), nextMoveLoopTime);
+        this.drawer.stop();
+        this.mover.stop();
     }
     move(timeDelta) {
         const player = this._state.player;
         const timeCorrection = timeDelta / this._options.fetch('moveRate');
         if (isNaN(timeCorrection)) timeCorrection = 1;
         this.moveEntity(timeCorrection, player);
-        for (let i = 0; i < this._sprites.length; i++)
-            if (this._state.sprites[i].fetch('isMoving'))
-                this.moveEntity(timeCorrection, this._sprites[i]);
+        this._state.forEachSprite(spr => {
+            if (spr.fetch('isMoving'))
+                this.moveEntity(timeCorrection, spr);
+        });
     }
     moveEntity(timeCorrection, entity) {
         const moveStep = timeCorrection * entity.fetch('speed') * entity.fetch('moveSpeed');
         const strafeStep = timeCorrection * entity.fetch('strafe') * entity.fetch('moveSpeed');
-        let newX = entity.x + Math.cos(entity.fetch('rot')) * moveStep;
-        let newY = entity.y + Math.sin(entity.fetch('rot')) * moveStep;
+        let newX = entity.fetch('x') + Math.cos(entity.fetch('rot')) * moveStep;
+        let newY = entity.fetch('y') + Math.sin(entity.fetch('rot')) * moveStep;
         newX -= Math.sin(entity.fetch('rot')) * strafeStep;
         newY += Math.cos(entity.fetch('rot')) * strafeStep;
         entity.store('rot', entity.fetch('rot') +
@@ -119,13 +121,13 @@ const Main = class {
         if (!c[1]) entity.store('y', newY);
     }
     detectCollision(x, y, entity) {
-        const getMapEntry = ((x, y) => {
+        const getMapEntry = (x, y) => {
             if (entity.fetch('id')) {
                 x -= this._options.fetch('spriteDrawOffsetX');
                 y -= this._options.fetch('spriteDrawOffsetY');
             }
             return this._state.getWallType(Math.floor(x), Math.floor(y));
-        }).bind(this);
+        };
         if (x < 0 || x > this._state.mapWidth || y < 0 || y > this._state.mapHeight)
             return [true, true];
         const distToWall = this._options.fetch('minDistToWall');
@@ -136,16 +138,6 @@ const Main = class {
         if (getMapEntry(x + distToWall, y) > 0) collisionX = true;
         else if (getMapEntry(x - distToWall, y) > 0) collisionX = true;
         return [collisionX, collisionY];
-    }
-    drawLoop() {
-        let start = 0;
-        const ctx = this._ctx;
-        ctx.clearRect(0, 0, this._screen.width, this._screen.height);
-        if (this._minimap) this.updateMiniMap();
-        this.drawSimpleCeilingAndGround();
-        this.castRays();
-        if (this.running)
-            setTimeout(this.drawLoop.bind(this), 20);
     }
     drawSimpleCeilingAndGround() {
         const ctx = this._ctx;

@@ -32,4 +32,19 @@ const EventHandler = class {
 
 const iniimg = src => { const i = new Image(); i.src = src; return i; };
 
-export { iniimg, Mill, EventHandler };
+const AnimLooper = class {
+  constructor(fn) {
+    this.id = null;
+    this.last = null;
+    this.crank = timestamp => {
+      this.id = null;
+      const res = fn(timestamp, this.last);
+      this.last = timestamp;
+      if (res) this.id = requestAnimationFrame(ts => this.crank(ts));
+    };
+  }
+  start() { this.id = requestAnimationFrame(ts => this.crank(ts)); }
+  stop() { if (this.id !== null) cancelAnimationFrame(this.id); }
+};
+
+export { iniimg, Mill, EventHandler, AnimLooper };
