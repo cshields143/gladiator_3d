@@ -32,8 +32,9 @@ const fov_floor_weight_table = {
 };
 
 const Main = class {
-    constructor(screen_el, minimap_el, debug_output_el, options = {}) {
+    constructor(root, screen_el, minimap_el, debug_output_el, options = {}) {
         this.running = true;
+        this.root = root;
         this._state = {};
         this._sprites = [];
         this._screen = screen_el;
@@ -66,9 +67,9 @@ const Main = class {
         }
         this._viewDist = this._screenMiddle / Math.tan(this._halfFov);
         this._eventHandlers = [
-            new EventHandler(document, 'keydown',
+            new EventHandler(root, 'keydown',
                 this._options.fetch('onkeydown').bind(this, this._state)),
-            new EventHandler(document, 'keyup',
+            new EventHandler(root, 'keyup',
                 this._options.fetch('onkeyup').bind(this, this._state))
         ];
         this.registerEventHandlers();
@@ -192,7 +193,7 @@ const Main = class {
         const mapWidth = this._state.mapWidth;
         const mapHeight = this._state.mapHeight;
         if (this._minimapWalls === undefined) {
-            this._minimapWalls = document.createElement('canvas');
+            this._minimapWalls = this.root.createElement('canvas');
             this._minimapWalls.style.position = 'absolute';
             this._minimapWalls.style.zIndex = 0;
             this._minimap.appendChild(this._minimapWalls);
@@ -221,7 +222,7 @@ const Main = class {
         const mapWidth = this._state.mapWidth;
         const mapHeight = this._state.mapHeight;
         if (this._minimapObjects === undefined) {
-            this._minimapObjects = document.create('canvas');
+            this._minimapObjects = this.root.createElement('canvas');
             this._minimapObjects.style.position = 'aboslute';
             this._minimapObjects.style.zIndex = 1;
             this._minimap.appendChild(this._minimapObjects);
