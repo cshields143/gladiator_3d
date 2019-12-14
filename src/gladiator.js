@@ -104,21 +104,21 @@ ge.MainController = class {
         this._minimap = ge.$(minimap_id);
         this._options = new Config(options);
         this._debug = ge.$(debug_output_element);
-        this._wallTextureAtlas = iniImg(this._options.wallTextureAtlas);
-        this._floorCeilingTextureAtlas = iniImg(this._options.floorCeilingTextureAtlas);
-        if (this._options.ceilingImage)
-            this._skyImage = iniImg(this._options.ceilingImage);
-        this._screen.width = this._options.screenWidth;
-        this._screen.height = this._options.screenHeight;
-        this._screen.style.width = this._options.screenElementWidth + 'px';
-        this._screen.style.height = this._options.screenElementHeight + 'px';
-        this._numRays = Math.ceil(this._options.screenWidth / this._options.stripWidth);
-        this._halfFov = this._options.fov / 2;
+        this._wallTextureAtlas = iniImg(this._options.fetch('wallTextureAtlas'));
+        this._floorCeilingTextureAtlas = iniImg(this._options.fetch('floorCeilingTextureAtlas'));
+        if (this._options.fetch('ceilingImage'))
+            this._skyImage = iniImg(this._options.fetch('ceilingImage'));
+        this._screen.width = this._options.fetch('screenWidth');
+        this._screen.height = this._options.fetch('screenHeight');
+        this._screen.style.width = this._options.fetch('screenElementWidth') + 'px';
+        this._screen.style.height = this._options.fetch('screenElementHeight') + 'px';
+        this._numRays = Math.ceil(this._options.fetch('screenWidth') / this._options.fetch('stripWidth'));
+        this._halfFov = this._options.fetch('fov') / 2;
         this._fovFloorWeight = 0.85 + 5;
-        this._screenMiddle = this._options.screenWidth / 2;
+        this._screenMiddle = this._options.fetch('screenWidth') / 2;
         this._lastMoveLoopTime = undefined;
         let match = 999;
-        let fov_degrees = 180 * this._options.fov / Math.PI;
+        let fov_degrees = 180 * this._options.fetch('fov') / Math.PI;
         for (let fov_key in ge.MainController.FOV_FLOOR_WEIGHT_TABLE) {
             const new_match = Math.abs(fov_key - fov_degrees);
             if (new_match < match) {
@@ -131,8 +131,8 @@ ge.MainController = class {
         this.registerEventHandlers();
     }
     registerEventHandlers() {
-        document.onkeydown = ge.bind(this._options.eventHandler.onkeydown, this, this._state);
-        document.onkeyup = ge.bind(this._options.eventHandler.onkeyup, this, this._state);
+        document.onkeydown = ge.bind(this._options.fetch('onkeydown'), this, this._state);
+        document.onkeyup = ge.bind(this._options.fetch('onkeyup'), this, this._state);
     }
     deRegisterEventHandlers() {
         document.onkeydown = null;
@@ -169,17 +169,17 @@ ge.MainController = class {
         const moveLoopTime = gettime();
         const timeDelta = moveLoopTime - this._lastMoveCycleTime;
         this.move(timeDelta);
-        let nextMoveLoopTime = 1000 / this._options.moveRate;
+        let nextMoveLoopTime = 1000 / this._options.fetch('moveRate');
         if (timeDelta > nextMoveLoopTime)
             nextMoveLoopTime = Math.max(1, nextMoveLoopTime - (timeDelta - nextMoveLoopTime));
-        this._options.moveHandler(this._state, this._sprites);
+        this._options.fetch('moveHandler')(this._state, this._sprites);
         this._lastMoveCycleTime = moveLoopTime;
         if (this.running)
             setTimeout(ge.bind(this.moveLoop, this), nextMoveLoopTime);
     }
     move(timeDelta) {
         const player = this._state.player;
-        const timeCorrection = timeDelta / this._options.moveRate;
+        const timeCorrection = timeDelta / this._options.fetch('moveRate');
         if (isNaN(timeCorrection)) timeCorrection = 1;
         this.moveEntity(timeCorrection, player);
         for (let i = 0; i < this._sprites.length; i++)
@@ -201,14 +201,14 @@ ge.MainController = class {
     detectCollision(x, y, entity) {
         const getMapEntry = ge.bind((x, y) => {
             if (entity.id) {
-                x -= this._options.spriteDrawOffsetX;
-                y -= this._options.spriteDrawOffsetY;
+                x -= this._options.fetch('spriteDrawOffsetX');
+                y -= this._options.fetch('spriteDrawOffsetY');
             }
             return this._state.map[Math.floor(y)][Math.floor(x)];
         }, this);
         if (x < 0 || x > this._state.mapWidth || y < 0 || y > this._state.mapHeight)
             return [true, true];
-        const distToWall = this._options.minDistToWall;
+        const distToWall = this._options.fetch('minDistToWall');
         let collisionX = false;
         let collisionY = false;
         if (getMapEntry(x, y + distToWall) > 0) collisionY = true;
@@ -228,7 +228,7 @@ ge.MainController = class {
         if (this._minimap) this.updateMiniMap();
         this.drawSimpleCeilingAndGround();
         this.castRays();
-        this._options.drawHandler(ctx, this._state, this._sprites);
+        this._options.fetch('drawHandler')(ctx, this._state, this._sprites);
         if (start) {
             const runtime = gettime() - start;
             this.printDebug(`Runtime: ${runtime}`);
@@ -243,20 +243,20 @@ ge.MainController = class {
     }
     drawSimpleCeilingAndGround() {
         const ctx = this._ctx;
-        const screenHeight = this._options.screenHeight;
-        const screenHeightHalf = this._options.screenHeight / 2;
-        const screenWidth = this._options.screenWidth;
+        const screenHeight = this._options.fetch('screenHeight');
+        const screenHeightHalf = this._options.fetch('screenHeight') / 2;
+        const screenWidth = this._options.fetch('screenWidth');
         if (this._skyImage)
             this.circleImage(this._skyImage);
         else {
-            ctx.fillStyle = this._options.ceilingSolidColor;
+            ctx.fillStyle = this._options.fetch('ceilingSolidColor');
             ctx.fillRect(0, 0, screenWidth, screenHeightHalf);
         }
-        ctx.fillStyle = this._options.floorSolidColor;
+        ctx.fillStyle = this._options.fetch('floorSolidColor');
         ctx.fillRect(0, screenHeightHalf, screenWidth, screenHeightHalf);
     }
     drawMiniMap() {
-        const minimapScale = this._options.minimapScale;
+        const minimapScale = this._options.fetch('minimapScale');
         const mapWidth = this._state.mapWidth;
         const mapHeight = this._state.mapHeight;
         if (this._minimapWalls === undefined) {
@@ -285,7 +285,7 @@ ge.MainController = class {
         if (this._minimapWalls === undefined) this.drawMiniMap();
         const player = this._state.player;
         const options = this._options;
-        const minimapScale = options.minimapScale;
+        const minimapScale = options.fetch('minimapScale');
         const mapWidth = this._state.mapWidth;
         const mapHeight = this._state.mapHeight;
         if (this._minimapObjects === undefined) {
@@ -300,13 +300,13 @@ ge.MainController = class {
         minimapObjects.style.width = `${mapWidth * minimapScale}px`;
         minimapObjects.style.height = `${mapHeight * minimapScale}px`;
         const ctx = minimapObjects.getContext('2d');
-        ctx.fillStyle = options.minimapPlayerColor;
+        ctx.fillStyle = options.fetch('minimapPlayerColor');
         ctx.fillRect(
             player.x * minimapScale - 2,
             player.y * minimapScale - 2,
             4, 4
         );
-        ctx.strokeStyle = options.minimapPlayerColor;
+        ctx.strokeStyle = options.fetch('minimapPlayerColor');
         ctx.beginPath();
         ctx.moveTo(player.x * minimapScale, player.y * minimapScale);
         ctx.lineTo(
@@ -321,7 +321,7 @@ ge.MainController = class {
         const leftmostRayPos = -this._numRays / 2;
         const distArray = [];
         for (let i = 0; i < this._numRays; i++) {
-            const rayScreenPos = (leftmostRayPos + i) * this._options.stripWidth;
+            const rayScreenPos = (leftmostRayPos + i) * this._options.fetch('stripWidth');
             const rayViewLength = Math.sqrt(rayScreenPos * rayScreenPos + viewDistSquare);
             let rayAngle = Math.asin(rayScreenPos / rayViewLength);
             rayAngle = this._state.player.rot + rayAngle;
@@ -333,8 +333,8 @@ ge.MainController = class {
             this.drawStrip(i, dist, res[1], res[2], res[3], res[4], rayAngle);
         }
         if (!this._sprites.length) return;
-        const spriteOffsetX = this._options.spriteDrawOffsetX;
-        const spriteOffsetY = this._options.spriteDrawOffsetY;
+        const spriteOffsetX = this._options.fetch('spriteDrawOffsetX');
+        const spriteOffsetY = this._options.fetch('spriteDrawOffsetY');
         const sprite_dists = {};
         const getDistanceToPlayer = ge.bind(sprite => {
             const sdx = sprite.x - this._state.player.x - spriteOffsetX;
@@ -367,8 +367,8 @@ ge.MainController = class {
                 const ctx = this._minimapObjects.getContext('2d');
                 ctx.fillStyle = sprite.minimapColor;
                 ctx.fillRect(
-                    xSprite * this._options.minimapScale,
-                    ySprite * this._options.minimapScale,
+                    xSprite * this._options.fetch('minimapScale'),
+                    ySprite * this._options.fetch('minimapScale'),
                     4, 4
                 );
             }
@@ -377,8 +377,8 @@ ge.MainController = class {
             const spriteAngle = Math.atan2(ySprite, xSprite) - this._state.player.rot;
             const size = this._viewDist / (Math.cos(spriteAngle) * distSprite);
             if (size <= 0) continue;
-            const screenWidth = this._options.screenWidth;
-            const screenHeight = this._options.screenHeight;
+            const screenWidth = this._options.fetch('screenWidth');
+            const screenHeight = this._options.fetch('screenHeight');
             let x = Math.floor(
                 screenWidth / 2 + Math.tan(spriteAngle) *
                 this._viewDist - size * sprite.spriteScaleX / 2
@@ -390,7 +390,7 @@ ge.MainController = class {
             const sy = Math.ceil(sprite.spriteHeight * 0.01 * size) +
                 (0.45 + sprite.spriteScaleY - 1) * size;
             const ctx = this._ctx;
-            const stripWidth = this._options.stripWidth;
+            const stripWidth = this._options.fetch('stripWidth');
             const drawSprite = (tx, tw, sx, sw) => {
                 if (tw <= 0 || sw <= 0) return;
                 ctx.drawImage(
@@ -520,12 +520,12 @@ ge.MainController = class {
         return [Math.sqrt(dist_v), texturex_v, wallType_v, xHit_v, yHit_v];
     }
     drawStrip(index, dist, texturex, wallType, hitX, hitY, rayAngle) {
-        const textureWidth = this._options.textureWidth;
-        const textureHeight = this._options.textureHeight;
-        const screenHeight = this._options.screenHeight;
-        const stripWidth = this._options.stripWidth;
+        const textureWidth = this._options.fetch('textureWidth');
+        const textureHeight = this._options.fetch('textureHeight');
+        const screenHeight = this._options.fetch('screenHeight');
+        const stripWidth = this._options.fetch('stripWidth');
         const ctx = this._ctx;
-        const textureOffset = this._options.wallTextureMapping[wallType];
+        const textureOffset = this._options.fetch('wallTextureMapping')[wallType];
         const textureOffset_h = textureOffset ? textureOffset[0] : 0;
         const textureOffset_v = textureOffset ? textureOffset[1] : 0;
         const height = Math.round(this._viewDist / dist);
@@ -544,7 +544,7 @@ ge.MainController = class {
         );
         const fheight = (screenHeight - height) / 2;
         const foffset = y + height;
-        const fweight = (this._options.screenWidth / screenHeight) * this._fovFloorWeight;
+        const fweight = (this._options.fetch('screenWidth') / screenHeight) * this._fovFloorWeight;
         const vx = (hitX - this._state.player.x) / dist;
         const vy = (hitY - this._state.player.y) / dist;
         const bottom = foffset + fheight;
@@ -558,7 +558,7 @@ ge.MainController = class {
             const floorTexturex = (wx * textureWidth) % textureWidth;
             const floorTexturey = (wy * textureHeight) % textureHeight;
             if (floorType) continue;
-            textureOffset = this._options.floorCeilingTextureMapping[floorType];
+            textureOffset = this._options.fetch('floorCeilingTextureMapping')[floorType];
             const textureOffset_floor_h = textureOffset ? textureOffset[0][0] : 0;
             const textureOffset_floor_v = textureOffset ? textureOffset[0][1] : 0;
             const textureOffset_ceiling_h = textureOffset ? textureOffset[1][0] : 0;
@@ -579,11 +579,11 @@ ge.MainController = class {
         }
     }
     circleImage(img) {
-        let skyWidth = this._options.screenWidth;
+        let skyWidth = this._options.fetch('screenWidth');
         let leftOverWidth = 0;
         const ctx = this._ctx;
-        const screenHeight = this._options.screenHeight;
-        const screenWidth = this._options.screenWidth;
+        const screenHeight = this._options.fetch('screenHeight');
+        const screenWidth = this._options.fetch('screenWidth');
         let xoffset = this._state.player.rot;
         xoffset %= ge.MainController.TWO_PI;
         if (xoffset < 0) xoffset += ge.MainController.TWO_PI;
@@ -604,10 +604,13 @@ ge.MainController = class {
         ctx.lineWidth = 0.5;
         ctx.beginPath();
         ctx.moveTo(
-            this._state.player.x * this._options.minimapScale,
-            this._state.player.y * this._options.minimapScale
+            this._state.player.x * this._options.fetch('minimapScale'),
+            this._state.player.y * this._options.fetch('minimapScale')
         );
-        ctx.lineTo(rayX * this._options.minimapScale, rayY * this._options.minimapScale);
+        ctx.lineTo(
+            rayX * this._options.fetch('minimapScale'),
+            rayY * this._options.fetch('minimapScale')
+        );
         ctx.closePath();
         ctx.stroke();
     }

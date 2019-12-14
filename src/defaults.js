@@ -100,6 +100,18 @@ const option_defaults = [
   0.5
 ];
 
+const UnknownOptionError = class extends Error {
+  constructor(...args) {
+    super(...args);
+    Error.captureStackTrace(this, UnknownOptionError);
+  }
+}
+const sanity_check = name => {
+  if (!option_names.includes(name))
+    throw new UnknownOptionError(name);
+  return name;
+};
+
 const Config = class {
   constructor(start = {}) {
     this.bucket = {};
@@ -110,8 +122,8 @@ const Config = class {
     }
     this.assign(start);
   }
-  fetch(k) { return this.bucket[k]; }
-  store(k, v) { this.bucket[k] = v; }
+  fetch(k) { return this.bucket[sanity_check(k)]; }
+  store(k, v) { this.bucket[sanity_check(k)] = v; }
   assign(obj) {
     for (let i = 0, l = option_names.length; i < l; i++) {
       const name = option_names[i];
