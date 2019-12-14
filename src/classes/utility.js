@@ -1,16 +1,3 @@
-const ge = {
-  $: id => document.getElementById(id),
-  create: tag => document.createElement(tag),
-  copyObject: (tar, src) => Object.assign(tar, src),
-  mergeObject: (o1, o2) => {
-      for (const attr in o1)
-          if(o2[attr] === undefined)
-              o2[attr] = o1[attr];
-  },
-  cloneObject: o => Object.assign({}, o),
-  bind: (f, t, ...a) => (...x) => f.apply(t, a.concat(x))
-};
-
 const UnknownError = class extends Error {
   constructor(...args) {
     super(...args);
@@ -43,4 +30,4 @@ const EventHandler = class {
   turnoff() { this.listening = false; }
 };
 
-export { ge, Mill, EventHandler };
+export { Mill, EventHandler };

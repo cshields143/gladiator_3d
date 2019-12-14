@@ -1,4 +1,4 @@
-import { ge, EventHandler } from './classes/utility.js';
+import { EventHandler } from './classes/utility.js';
 import { Config } from './classes/Config.js';
 import { Player } from './classes/Player.js';
 import { Sprite } from './classes/Sprite.js';
@@ -31,16 +31,16 @@ const fov_floor_weight_table = {
     170: 0.03
 };
 
-ge.MainController = class {
-    constructor(screen_id, minimap_id, debug_output_element, options = {}) {
+const Main = class {
+    constructor(screen_el, minimap_el, debug_output_el, options = {}) {
         this.running = true;
         this._state = {};
         this._sprites = [];
-        this._screen = ge.$(screen_id);
+        this._screen = screen_el;
         this._ctx = this._screen.getContext('2d');
-        this._minimap = ge.$(minimap_id);
+        this._minimap = minimap_el;
         this._options = new Config(options);
-        this._debug = ge.$(debug_output_element);
+        this._debug = debug_output_el;
         this._wallTextureAtlas = iniImg(this._options.fetch('wallTextureAtlas'));
         this._floorCeilingTextureAtlas = iniImg(this._options.fetch('floorCeilingTextureAtlas'));
         if (this._options.fetch('ceilingImage'))
@@ -67,9 +67,9 @@ ge.MainController = class {
         this._viewDist = this._screenMiddle / Math.tan(this._halfFov);
         this._eventHandlers = [
             new EventHandler(document, 'keydown',
-                ge.bind(this._options.fetch('onkeydown'), this, this._state)),
+                this._options.fetch('onkeydown').bind(this, this._state)),
             new EventHandler(document, 'keyup',
-                ge.bind(this._options.fetch('onkeyup'), this, this._state))
+                this._options.fetch('onkeyup').bind(this, this._state))
         ];
         this.registerEventHandlers();
     }
@@ -107,7 +107,7 @@ ge.MainController = class {
         this._options.fetch('moveHandler')(this._state, this._sprites);
         this._lastMoveCycleTime = moveLoopTime;
         if (this.running)
-            setTimeout(ge.bind(this.moveLoop, this), nextMoveLoopTime);
+            setTimeout(this.moveLoop.bind(this), nextMoveLoopTime);
     }
     move(timeDelta) {
         const player = this._state.player;
@@ -131,13 +131,13 @@ ge.MainController = class {
         if (!c[1]) entity.y = newY;
     }
     detectCollision(x, y, entity) {
-        const getMapEntry = ge.bind((x, y) => {
+        const getMapEntry = ((x, y) => {
             if (entity.id) {
                 x -= this._options.fetch('spriteDrawOffsetX');
                 y -= this._options.fetch('spriteDrawOffsetY');
             }
             return this._state.map[Math.floor(y)][Math.floor(x)];
-        }, this);
+        }).bind(this);
         if (x < 0 || x > this._state.mapWidth || y < 0 || y > this._state.mapHeight)
             return [true, true];
         const distToWall = this._options.fetch('minDistToWall');
@@ -171,7 +171,7 @@ ge.MainController = class {
             this.printDebug(`FPS: ${fps}`);
         }
         if (this.running)
-            setTimeout(ge.bind(this.drawLoop, this), 20);
+            setTimeout(this.drawLoop.bind(this), 20);
     }
     drawSimpleCeilingAndGround() {
         const ctx = this._ctx;
@@ -192,7 +192,7 @@ ge.MainController = class {
         const mapWidth = this._state.mapWidth;
         const mapHeight = this._state.mapHeight;
         if (this._minimapWalls === undefined) {
-            this._minimapWalls = ge.create('canvas');
+            this._minimapWalls = document.createElement('canvas');
             this._minimapWalls.style.position = 'absolute';
             this._minimapWalls.style.zIndex = 0;
             this._minimap.appendChild(this._minimapWalls);
@@ -221,7 +221,7 @@ ge.MainController = class {
         const mapWidth = this._state.mapWidth;
         const mapHeight = this._state.mapHeight;
         if (this._minimapObjects === undefined) {
-            this._minimapObjects = ge.create('canvas');
+            this._minimapObjects = document.create('canvas');
             this._minimapObjects.style.position = 'aboslute';
             this._minimapObjects.style.zIndex = 1;
             this._minimap.appendChild(this._minimapObjects);
@@ -268,11 +268,11 @@ ge.MainController = class {
         const spriteOffsetX = this._options.fetch('spriteDrawOffsetX');
         const spriteOffsetY = this._options.fetch('spriteDrawOffsetY');
         const sprite_dists = {};
-        const getDistanceToPlayer = ge.bind(sprite => {
+        const getDistanceToPlayer = (sprite => {
             const sdx = sprite.fetch('x') - this._state.player.fetch('x') - spriteOffsetX;
             const sdy = sprite.fetch('y') - this._state.player.fetch('y') - spriteOffsetY;
             return Math.sqrt(sdx * sdx + sdy * sdy);
-        }, this);
+        }).bind(this);
         if (this._sprites.length === 1)
             sprite_dists[this._sprites[0].fetch('id')] = getDistanceToPlayer(this._sprites[0]);
         else {
