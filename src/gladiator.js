@@ -4,13 +4,12 @@ if (ge === undefined) {
 
 // Utility functions
 // =================
-ge.$ = function(id) { "use strict"; return document.getElementById(id); };
-ge.create = function(tag) { "use strict"; return document.createElement(tag); };
-ge.copyObject = function (o1, o2) { "use strict"; for (var attr in o1) { o2[attr] = o1[attr]; } };
-ge.mergeObject = function (o1, o2) { "use strict"; for (var attr in o1) { if(o2[attr] === undefined) { o2[attr] = o1[attr]; } } };
-ge.cloneObject = function (o) { "use strict"; var r = {}; ge.copyObject(o, r); return r; };
+ge.$ = function(id) { return document.getElementById(id); };
+ge.create = function(tag) { return document.createElement(tag); };
+ge.copyObject = function (o1, o2) { for (var attr in o1) { o2[attr] = o1[attr]; } };
+ge.mergeObject = function (o1, o2) { for (var attr in o1) { if(o2[attr] === undefined) { o2[attr] = o1[attr]; } } };
+ge.cloneObject = function (o) { var r = {}; ge.copyObject(o, r); return r; };
 ge.bind = function () {
-    "use strict";
     var f = arguments[0], t = Array.prototype.slice.call(arguments, 1);
     var a = t.splice(1);
     return function() {
@@ -127,7 +126,6 @@ ge.Class = function() {};
 // ===============
 ge.default_eventHandler = {
     onkeydown : function(state, e) {
-        "use strict";
         e = e || window.event;
         switch (e.keyCode) {
             case 38: state.player.speed =  1; break; // Move forward
@@ -160,7 +158,6 @@ ge.default_eventHandler = {
     },
 
     onkeyup : function(state, e) {
-        "use strict";
         e = e || window.event;
         switch (e.keyCode) {
             case 38: case 40: state.player.speed = 0; break; // Stop moving
@@ -177,7 +174,6 @@ ge.default_eventHandler = {
 
     // Stop the bubbling of an event
     stopBubbleEvent : function (e) {
-        "use strict";
         e = e ? e:window.event;
         if (e.stopPropagation) {
             e.stopPropagation();
@@ -376,7 +372,6 @@ ge.MainController = ge.Class.create({
     _lastMoveLoopTime : 0,
 
     init : function(screen_id, minimap_id, options, debug_output_element) {
-        "use strict";
 
         this.running  = true;
         this._state   = {};
@@ -446,7 +441,6 @@ ge.MainController = ge.Class.create({
     },
 
     start : function(map, initial_player_state) {
-        "use strict";
 
         this._state.map = map;
         this._state.mapWidth  = map[0].length;
@@ -468,13 +462,11 @@ ge.MainController = ge.Class.create({
     },
 
     stop : function () {
-        "use strict";
         this.running = false;
         this.deRegisterEventHandlers();
     },
 
     addSprite : function(initial_sprite_state) {
-        "use strict";
 
         // Merge given initial sprite state with default sprite state
         var sprite_state = {}
@@ -494,21 +486,18 @@ ge.MainController = ge.Class.create({
     },
 
     registerEventHandlers : function (handlerObject) {
-        "use strict";
 
         document.onkeydown = ge.bind(this._options.eventHandler.onkeydown, this, this._state);
         document.onkeyup = ge.bind(this._options.eventHandler.onkeyup, this, this._state);
     },
 
     deRegisterEventHandlers : function (handlerObject) {
-        "use strict";
 
         document.onkeydown = null;
         document.onkeyup = null;
     },
 
     printDebug : function (str) {
-        "use strict";
 
         if (this._debug !== null) {
             this._debug.innerHTML += str+"<br>";
@@ -516,7 +505,6 @@ ge.MainController = ge.Class.create({
     },
 
     moveLoop : function () {
-        "use strict";
 
         var moveLoopTime = new Date().getTime();
         var timeDelta = moveLoopTime - this._lastMoveCycleTime;
@@ -542,7 +530,6 @@ ge.MainController = ge.Class.create({
     },
 
     move : function (timeDelta) {
-        "use strict";
 
         var player = this._state.player;
 
@@ -592,7 +579,6 @@ ge.MainController = ge.Class.create({
     },
 
     detectCollision : function (x, y, entity) {
-        "use strict";
 
         var getMapEntry = ge.bind(function (x, y) {
             // Check if we have a sprite
@@ -632,7 +618,6 @@ ge.MainController = ge.Class.create({
     },
 
     drawLoop : function () {
-        "use strict";
 
         var start = 0;
 
@@ -673,7 +658,6 @@ ge.MainController = ge.Class.create({
     },
 
     drawSimpleCeilingAndGround : function () {
-        "use strict";
 
         var ctx = this._ctx;
         var screenHeight = this._options.screenHeight;
@@ -695,7 +679,6 @@ ge.MainController = ge.Class.create({
     },
 
     drawMiniMap : function () {
-        "use strict";
 
         var minimapScale = this._options.minimapScale,
             mapWidth = this._state.mapWidth,
@@ -735,7 +718,6 @@ ge.MainController = ge.Class.create({
     },
 
     updateMiniMap : function () {
-        "use strict";
 
         if (this._minimapWalls === undefined) {
             this.drawMiniMap();
@@ -786,7 +768,6 @@ ge.MainController = ge.Class.create({
     },
 
     castRays : function () {
-        "use strict";
 
         // Viewdistance squared
         var viewDistSquare = this._viewDist * this._viewDist;
@@ -847,7 +828,6 @@ ge.MainController = ge.Class.create({
         // Sort sprites - far sprites to close sprites and get all the distances
         var sprite_dists = {};
         var getDistanceToPlayer = ge.bind(function (sprite) {
-            "use strict";
             var sdx = sprite.x - this._state.player.x - spriteOffsetX;
             var sdy = sprite.y - this._state.player.y - spriteOffsetY;
             return Math.sqrt(sdx * sdx + sdy * sdy);
@@ -857,7 +837,6 @@ ge.MainController = ge.Class.create({
             sprite_dists[this._sprites[0].id] = getDistanceToPlayer(this._sprites[0]);
         } else {
             this._sprites.sort(function (sprite1, sprite2) {
-                "use strict";
                 var sd1, sd2;
                 if (sprite_dists[sprite1.id] === undefined) {
                     sd1 = getDistanceToPlayer(sprite1);
@@ -930,7 +909,6 @@ ge.MainController = ge.Class.create({
             // Draw function for sprites - it knows already the height
             // but needs to know stripes to draw
             var drawSprite = function(tx, tw, sx, sw) {
-                "use strict";
                 if (tw <= 0 || sw <= 0) {
                     return;
                 }
@@ -1023,7 +1001,6 @@ ge.MainController = ge.Class.create({
     },
 
     castSingleRay : function (rayAngle, stripIdx) {
-        "use strict";
 
         var distx, disty;
 
@@ -1132,7 +1109,6 @@ ge.MainController = ge.Class.create({
 
 
     drawStrip : function(index, dist, texturex, wallType, hitX, hitY, rayAngle) {
-        "use strict";
 
         // Draw Walls
 
@@ -1251,7 +1227,6 @@ ge.MainController = ge.Class.create({
     },
 
     circleImage : function (image) {
-        "use strict";
         var rot,
             skyWidth = this._options.screenWidth,
             leftOverWidth = 0,
@@ -1291,7 +1266,6 @@ ge.MainController = ge.Class.create({
     },
 
     drawRay : function (rayX, rayY) {
-        "use strict";
 
         var minimapObjects = this._minimapObjects;
         var ctx = minimapObjects.getContext("2d");
