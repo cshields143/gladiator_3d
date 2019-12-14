@@ -1,7 +1,7 @@
-import { ge } from './utility.js';
-import { Config } from './Config.js';
-import { Player } from './Player.js';
-import { Sprite } from './Sprite.js';
+import { ge, EventHandler } from './classes/utility.js';
+import { Config } from './classes/Config.js';
+import { Player } from './classes/Player.js';
+import { Sprite } from './classes/Sprite.js';
 
 const iniImg = src => { const i = new Image(); i.src = src; return i; };
 const gettime = () => (new Date()).getTime();
@@ -65,16 +65,16 @@ ge.MainController = class {
             if (match === 0) break;
         }
         this._viewDist = this._screenMiddle / Math.tan(this._halfFov);
+        this._eventHandlers = [
+            new EventHandler(document, 'keydown',
+                ge.bind(this._options.fetch('onkeydown'), this, this._state)),
+            new EventHandler(document, 'keyup',
+                ge.bind(this._options.fetch('onkeyup'), this, this._state))
+        ];
         this.registerEventHandlers();
     }
-    registerEventHandlers() {
-        document.onkeydown = ge.bind(this._options.fetch('onkeydown'), this, this._state);
-        document.onkeyup = ge.bind(this._options.fetch('onkeyup'), this, this._state);
-    }
-    deRegisterEventHandlers() {
-        document.onkeydown = null;
-        document.onkeyup = null;
-    }
+    registerEventHandlers() { this._eventHandlers.forEach(eh => eh.turnon()); }
+    deRegisterEventHandlers() { this._eventHandlers.forEach(eh => eh.turnoff()); }
     start(map, initial_player_state = {}) {
         this._state.map = map;
         this._state.mapWidth = map[0].length;
