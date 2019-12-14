@@ -1,18 +1,7 @@
-const UnknownError = class extends Error {
-  constructor(...args) {
-    super(...args);
-    Error.captureStackTrace(this, UnknownError);
-  }
-};
-const sanity_check = obj => k => {
-  if (!Object.keys(obj).includes(k))
-    throw new UnknownError(k);
-  return k;
-};
 const Mill = class {
   constructor(defs) {
     this.bucket = {};
-    this.check = sanity_check(defs);
+    this.check = k => k;
     this.assign(defs);
   }
   fetch(k) { return this.bucket[this.check(k)]; }
