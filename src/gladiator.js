@@ -93,14 +93,11 @@ ge.MainController = class {
         document.onkeydown = null;
         document.onkeyup = null;
     }
-    start(map, initial_player_state) {
+    start(map, initial_player_state = {}) {
         this._state.map = map;
         this._state.mapWidth = map[0].length;
         this._state.mapHeight = map.length;
-        this._state.player = {};
-        ge.copyObject(ge.default_initial_player_state, this._state.player);
-        if (initial_player_state)
-            ge.copyObject(intial_player_state, this._state.player);
+        this._state.player = new Player(initial_player_state);
         if (this._minimap) this.drawMiniMap();
         this.drawLoop();
         this.moveLoop();
