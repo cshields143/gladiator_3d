@@ -1,23 +1,17 @@
-if (ge === undefined) {
-    var ge = {};
-}
+const ge = {};
 
 // Utility functions
 // =================
-ge.$ = function(id) { return document.getElementById(id); };
-ge.create = function(tag) { return document.createElement(tag); };
-ge.copyObject = function (o1, o2) { for (var attr in o1) { o2[attr] = o1[attr]; } };
-ge.mergeObject = function (o1, o2) { for (var attr in o1) { if(o2[attr] === undefined) { o2[attr] = o1[attr]; } } };
-ge.cloneObject = function (o) { var r = {}; ge.copyObject(o, r); return r; };
-ge.bind = function () {
-    var f = arguments[0], t = Array.prototype.slice.call(arguments, 1);
-    var a = t.splice(1);
-    return function() {
-        "use strict";
-        return f.apply(t[0],
-                       a.concat(Array.prototype.slice.call(arguments, 0)));
-    }
+ge.$ = id => document.getElementById(id);
+ge.create = tag => document.createElement(tag);
+ge.copyObject = (tar, src) => Object.assign(tar, src);
+ge.mergeObject = (o1, o2) => {
+    for (const attr in o1)
+        if(o2[attr] === undefined)
+            o2[attr] = o1[attr];
 };
+ge.cloneObject = o => Object.assign({}, o);
+ge.bind = (f, t, ...a) => (...x) => f.apply(t, a.concat(x));
 
 // Class implementation
 // ====================
