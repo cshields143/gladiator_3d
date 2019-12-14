@@ -1,48 +1,35 @@
-import { Mill } from './utility.js';
 import { Player } from './Player.js';
 import { Sprite } from './Sprite.js';
-
-const MishapenError = class extends Error {
-  constructor(rows) {
-    super(rows.map(r => r.length).join(','));
-    Error.captureStackTrace(this, MishapenError);
-  }
-};
-const OutOfBoundsError = class extends Error {
-  constructor(x, y) {
-    super(`(${x},${y})`);
-    Error.captureStackTrace(this, OutOfBoundsError);
-  }
-};
-const all_same_length = (...arrs) => arrs.every((x, i, c) => x.length === c[0].length);
-const Mapp = class {
-  constructor(...rows) {
-    this.rows = [];
-    if (!all_same_length(rows))
-      throw new MishapenError(rows);
-    rows.forEach(row => {
-      this.rows.push([]);
-      const i = this.rows[this.rows.length - 1];
-      row.forEach(wallType => {
-        this.rows[i].push(Math.trunc(wallType));
-      })
-    });
-    this.width = this.rows[0].length;
-    this.height = this.rows.length;
-  }
-  fetch(x, y) {
-    if (x < 0 || x >= this.width || y < 0 || y >= this.height)
-      throw new OutOfBoundsError(x, y);
-    return this.rows[y][x];
-  }
-};
+import { Mapp } from './Mapp.js';
 
 const Game = class extends Mill {
-  constructor(start = {}) {
-    super({
-
+  constructor(litmap, player_opts = {}) {
+    this.mapp = new Mapp(...litmap);
+    this.player = new Player(player_opts);
+    this.sprites = [];
+  }
+  get mapWidth() { return this.mapp.width; }
+  get mapHeight() { return this.mapp.height; }
+  getWallType(x, y) { return this.mapp.fetch(x, y); }
+  addSprite(opts = {}) { this.sprites.push(new Sprite(opts)); return this.sprites.length - 1; }
+  getSprite(idx) { return this.sprites[idx]; }
+  get hasSprites() { return this.sprites.length > 0; }
+  get hasOneSprite() { return this.sprites.length === 1; }
+  sortSprites(dists, fn) {
+    this.sprites.sort((s1, s2) => {
+      if (dists[s1.fetch('id')] === undefined)
+        dists[s1.fetch('id')] = fn(s1);
+      if (dists[s2.fetch('id')] === undefined)
+        dists[s2.fetch('id')] = fn(s2);
+      return dists[s2.fetch('id')] - dists[s1.fetch('id')];
     });
   }
+  updateDists(dists) { this.player.store('spriteDistances', dists); }
+  getPlayerCrossHairSize() { return this.player.fetch('crossHairSize'); }
+  forEachSprite(fn) { this.sprites.forEach(fn); }
+  get playerX() { return this.player.fetch('x'); }
+  get playerY() { return this.player.fetch('y'); }
+  get playerRot() { return this.player.fetch('rot'); }
 };
 
 export { Game };

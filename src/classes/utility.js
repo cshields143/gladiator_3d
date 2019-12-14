@@ -30,4 +30,6 @@ const EventHandler = class {
   turnoff() { this.listening = false; }
 };
 
-export { Mill, EventHandler };
+const iniimg = src => { const i = new Image(); i.src = src; return i; };
+
+export { iniimg, Mill, EventHandler };

@@ -53,8 +53,6 @@ const Config = class extends Mill {
       minimapPlayerColor: 'blue',
       onkeydown: default_onkeydown,
       onkeyup: default_onkeyup,
-      moveHandler: () => {},
-      drawHandler: () => {},
       wallTextureAtlas: '',
       wallTextureMapping: {},
       floorCeilingTextureAtlas: '',

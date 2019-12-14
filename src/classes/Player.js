@@ -1,7 +1,7 @@
 import { Mill } from './utility.js';
 
 const Player = class extends Mill {
-  constructor() {
+  constructor(start = {}) {
     super({
       x: 2,
       y: 2,
@@ -18,5 +18,8 @@ const Player = class extends Mill {
       playerCrosshairHit: [],
       spriteDistances: {}
     });
+    this.assign(start);
   }
 };
+
+export { Player };

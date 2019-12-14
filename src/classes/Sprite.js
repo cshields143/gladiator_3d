@@ -1,4 +1,4 @@
-import { Mill } from './utility.js';
+import { iniimg, Mill } from './utility.js';
 
 const Sprite = class extends Mill {
     constructor(start = {}) {
@@ -26,6 +26,9 @@ const Sprite = class extends Mill {
             playerCrossHair: null,
             spriteAtlasImage: null
         });
+        this.assign(start);
+        if (this.fetch('spriteAtlasImage') !== null)
+            this.store('spriteAtlasImage', iniimg(this.fetch('spriteAtlasImage')));
     }
 };
 

@@ -1,9 +1,8 @@
-import { EventHandler } from './classes/utility.js';
+import { iniimg, EventHandler } from './classes/utility.js';
 import { Config } from './classes/Config.js';
 import { Player } from './classes/Player.js';
 import { Sprite } from './classes/Sprite.js';
 
-const iniImg = src => { const i = new Image(); i.src = src; return i; };
 const gettime = () => (new Date()).getTime();
 const fov_floor_weight_table = {
     10: 5.5,
@@ -32,20 +31,18 @@ const fov_floor_weight_table = {
 };
 
 const Main = class {
-    constructor(root, screen_el, minimap_el, debug_output_el, options = {}) {
+    constructor(litmap, root, screen_el, minimap_el, options = {}, player_opts = {}) {
         this.running = true;
         this.root = root;
-        this._state = {};
-        this._sprites = [];
+        this._state = new Game(litmap, player_opts);
         this._screen = screen_el;
         this._ctx = this._screen.getContext('2d');
         this._minimap = minimap_el;
         this._options = new Config(options);
-        this._debug = debug_output_el;
         this._wallTextureAtlas = iniImg(this._options.fetch('wallTextureAtlas'));
-        this._floorCeilingTextureAtlas = iniImg(this._options.fetch('floorCeilingTextureAtlas'));
+        this._floorCeilingTextureAtlas = iniimg(this._options.fetch('floorCeilingTextureAtlas'));
         if (this._options.fetch('ceilingImage'))
-            this._skyImage = iniImg(this._options.fetch('ceilingImage'));
+            this._skyImage = iniimg(this._options.fetch('ceilingImage'));
         this._screen.width = this._options.fetch('screenWidth');
         this._screen.height = this._options.fetch('screenHeight');
         this._screen.style.width = this._options.fetch('screenElementWidth') + 'px';
@@ -54,7 +51,7 @@ const Main = class {
         this._halfFov = this._options.fetch('fov') / 2;
         this._fovFloorWeight = 0.85 + 5;
         this._screenMiddle = this._options.fetch('screenWidth') / 2;
-        this._lastMoveLoopTime = undefined;
+        this._lastMoveCycleTime = undefined;
         let match = 999;
         let fov_degrees = 180 * this._options.fetch('fov') / Math.PI;
         for (let fov_key in fov_floor_weight_table) {
@@ -76,12 +73,10 @@ const Main = class {
     }
     registerEventHandlers() { this._eventHandlers.forEach(eh => eh.turnon()); }
     deRegisterEventHandlers() { this._eventHandlers.forEach(eh => eh.turnoff()); }
-    start(map, initial_player_state = {}) {
-        this._state.map = map;
-        this._state.mapWidth = map[0].length;
-        this._state.mapHeight = map.length;
-        this._state.player = new Player(initial_player_state);
-        if (this._minimap) this.drawMiniMap();
+    start() {
+        this.running = true;
+        this.registerEventHandlers();
+        this.drawMiniMap();
         this.drawLoop();
         this.moveLoop();
     }
@@ -89,23 +84,14 @@ const Main = class {
         this.running = false;
         this.deRegisterEventHandlers();
     }
-    addSprite(initial_sprite_state = {}) {
-        const sprite_state = new Sprite(initial_sprite_state);
-        sprite_state.spriteAtlasImage = iniImg(sprite_state.fetch('spriteAtlas'));
-        this._sprites.push(sprite_state);
-    }
-    printDebug(str) {
-        if (this._debug)
-            this._debug.insertAdjacentHTML('beforeend', `${str}<br />`);
-    }
     moveLoop() {
         const moveLoopTime = gettime();
-        const timeDelta = moveLoopTime - this._lastMoveCycleTime;
+        const timeDelta = this._lastMoveCycleTime === undefined ?
+            0 : moveLoopTime - this._lastMoveCycleTime;
         this.move(timeDelta);
         let nextMoveLoopTime = 1000 / this._options.fetch('moveRate');
         if (timeDelta > nextMoveLoopTime)
             nextMoveLoopTime = Math.max(1, nextMoveLoopTime - (timeDelta - nextMoveLoopTime));
-        this._options.fetch('moveHandler')(this._state, this._sprites);
         this._lastMoveCycleTime = moveLoopTime;
         if (this.running)
             setTimeout(this.moveLoop.bind(this), nextMoveLoopTime);
@@ -116,28 +102,29 @@ const Main = class {
         if (isNaN(timeCorrection)) timeCorrection = 1;
         this.moveEntity(timeCorrection, player);
         for (let i = 0; i < this._sprites.length; i++)
-            if (this._sprites[i].fetch('isMoving'))
+            if (this._state.sprites[i].fetch('isMoving'))
                 this.moveEntity(timeCorrection, this._sprites[i]);
     }
     moveEntity(timeCorrection, entity) {
-        const moveStep = timeCorrection * entity.speed * entity.moveSpeed;
-        const strafeStep = timeCorrection * entity.strafe * entity.moveSpeed;
-        let newX = entity.x + Math.cos(entity.rot) * moveStep;
-        let newY = entity.y + Math.sin(entity.rot) * moveStep;
-        newX -= Math.sin(entity.rot) * strafeStep;
-        newY += Math.cos(entity.rot) * strafeStep;
-        entity.rot += timeCorrection * entity.dir * entity.rotSpeed;
+        const moveStep = timeCorrection * entity.fetch('speed') * entity.fetch('moveSpeed');
+        const strafeStep = timeCorrection * entity.fetch('strafe') * entity.fetch('moveSpeed');
+        let newX = entity.x + Math.cos(entity.fetch('rot')) * moveStep;
+        let newY = entity.y + Math.sin(entity.fetch('rot')) * moveStep;
+        newX -= Math.sin(entity.fetch('rot')) * strafeStep;
+        newY += Math.cos(entity.fetch('rot')) * strafeStep;
+        entity.store('rot', entity.fetch('rot') +
+            timeCorrection * entity.fetch('dir') * entity.fetch('rotSpeed'));
         const c = this.detectCollision(newX, newY, entity);
-        if (!c[0]) entity.x = newX;
-        if (!c[1]) entity.y = newY;
+        if (!c[0]) entity.store('x', newX);
+        if (!c[1]) entity.store('y', newY);
     }
     detectCollision(x, y, entity) {
         const getMapEntry = ((x, y) => {
-            if (entity.id) {
+            if (entity.fetch('id')) {
                 x -= this._options.fetch('spriteDrawOffsetX');
                 y -= this._options.fetch('spriteDrawOffsetY');
             }
-            return this._state.map[Math.floor(y)][Math.floor(x)];
+            return this._state.getWallType(Math.floor(x), Math.floor(y));
         }).bind(this);
         if (x < 0 || x > this._state.mapWidth || y < 0 || y > this._state.mapHeight)
             return [true, true];
@@ -154,23 +141,9 @@ const Main = class {
         let start = 0;
         const ctx = this._ctx;
         ctx.clearRect(0, 0, this._screen.width, this._screen.height);
-        if (this._debug) {
-            this._debug.innerHTML = '';
-            start = gettime()
-        }
         if (this._minimap) this.updateMiniMap();
         this.drawSimpleCeilingAndGround();
         this.castRays();
-        this._options.fetch('drawHandler')(ctx, this._state, this._sprites);
-        if (start) {
-            const runtime = gettime() - start;
-            this.printDebug(`Runtime: ${runtime}`);
-            const now = gettime();
-            const timeDelta = now - this._debug_lastRenderCycleTime;
-            this._debug_lastRenderCycleTime = now;
-            const fps = Math.floor(1000 / timeDelta);
-            this.printDebug(`FPS: ${fps}`);
-        }
         if (this.running)
             setTimeout(this.drawLoop.bind(this), 20);
     }
@@ -206,8 +179,8 @@ const Main = class {
         const ctx = minimapWalls.getContext('2d');
         for (let y = 0; y < mapHeight; y++) {
             for (let x = 0; x < mapWidth; x++) {
-                const wall = this._state.map[y][x];
-                if (wall) {
+                const wall = this._state.getWallType(x, y);
+                if (wall > 0) {
                     ctx.fillStyle = 'rgb(200,200,200)';
                     ctx.fillRect(x * minimapScale, y * minimapScale, minimapScale, minimapScale);
                 }
@@ -265,7 +238,7 @@ const Main = class {
             distArray.push(dist);
             this.drawStrip(i, dist, res[1], res[2], res[3], res[4], rayAngle);
         }
-        if (!this._sprites.length) return;
+        if (!this._state.hasSprites) return;
         const spriteOffsetX = this._options.fetch('spriteDrawOffsetX');
         const spriteOffsetY = this._options.fetch('spriteDrawOffsetY');
         const sprite_dists = {};
@@ -274,111 +247,90 @@ const Main = class {
             const sdy = sprite.fetch('y') - this._state.player.fetch('y') - spriteOffsetY;
             return Math.sqrt(sdx * sdx + sdy * sdy);
         }).bind(this);
-        if (this._sprites.length === 1)
-            sprite_dists[this._sprites[0].fetch('id')] = getDistanceToPlayer(this._sprites[0]);
-        else {
-            this._sprites.sort((sprite1, sprite2) => {
-                if (sprite_dists[sprite1.fetch('id')] === undefined)
-                    sprite_dists[sprite1.fetch('id')] = getDistanceToPlayer(sprite1);
-                if (sprite_dists[sprite2.fetch('id')] === undefined)
-                    sprite_dists[sprite2.fetch('id')] = getDistanceToPlayer(sprite2);
-                const sd1 = sprite_dists[sprite1.fetch('id')];
-                const sd2 = sprite_dists[sprite2.fetch('id')];
-                return sd2 - sd1;
-            });
-        }
-        this._state.player.store('spriteDistances', sprite_dists);
-        const crossHairSize = this._state.player.fetch('crossHairSize');
+        if (this._state.hasOneSprite) {
+            const sprite = this._state.getSprite(0);
+            sprite_dists[sprite.fetch('id')] = getDistanceToPlayer(sprite);
+        } else
+            this._state.sortSprites(sprite_dists, getDistanceToPlayer);
+        this._state.updateDists(sprite_dists);
+        const crossHairSize = this._state.getPlayerCrossHairSize();
         const screenMiddle = this._screenMiddle;
         const playerCrosshairHit = [];
-        for (let i = 0; i < this._sprites.length; i++) {
-            const sprite = this._sprites[i];
-            const distSprite = sprite_dists[sprite.fetch('id')];
-            let xSprite = sprite.fetch('x') - spriteOffsetX;
-            let ySprite = sprite.fetch('y') - spriteOffsetY;
-            if (this._minimapObjects && sprite.fetch('drawOnMinimap')) {
+        this._state.forEachSprite((spr, i) => {
+            const dist = sprite_dists[spr.fetch('id')];
+            let xSprite = spr.fetch('x') - spriteOffsetX;
+            let ySprite = spr.fetch('y') - spriteOffsetY;
+            if (this._minimapObjects && spr.fetch('drawOnMinimap')) {
                 const ctx = this._minimapObjects.getContext('2d');
-                ctx.fillStyle = sprite.fetch('minimapColor');
+                ctx.fillStyle = spr.fetch('minimapColor');
                 ctx.fillRect(
                     xSprite * this._options.fetch('minimapScale'),
                     ySprite * this._options.fetch('minimapScale'),
                     4, 4
                 );
             }
-            xSprite = xSprite - this._state.player.fetch('x');
-            ySprite = ySprite - this._state.player.fetch('y');
-            const spriteAngle = Math.atan2(ySprite, xSprite) - this._state.player.fetch('rot');
-            const size = this._viewDist / (Math.cos(spriteAngle) * distSprite);
+            xSprite -= this._state.playerX;
+            ySprite -= this._state.playerY;
+            const spriteAngle = Math.atan2(ySprite, xSprite) - this._state.playerRot;
+            const size = this._viewDist / (Math.cos(spriteAngle) * dist);
             if (size <= 0) continue;
-            const screenWidth = this._options.fetch('screenWidth');
-            const screenHeight = this._options.fetch('screenHeight');
-            let x = Math.floor(
-                screenWidth / 2 + Math.tan(spriteAngle) *
-                this._viewDist - size * sprite.fetch('spriteScaleX') / 2
-            );
-            let y = Math.floor(
-                screenHeight / 2 - (0.55 + sprite.fetch('spriteScaleY') - 1) * size
-            );
-            const sx = Math.floor(size * sprite.fetch('spriteScaleX'));
-            const sy = Math.ceil(sprite.fetch('spriteHeight') * 0.01 * size) +
-                (0.45 + sprite.fetch('spriteScaleY') - 1) * size;
-            const ctx = this._ctx;
-            const stripWidth = this._options.fetch('stripWidth');
+            let x = Math.floor(this._options.fetch('screenWidth') / 2 + Math.tan(spriteAngle) *
+                this._viewDist - size * spr.fetch('spriteScaleX'));
+            let y = Math.floor(this._options.fetch('screenHeight') / 2 -
+                (0.55 + spr.fetch('spriteScaleY') - 1) * size);
+            const sx = Math.floor(size * spr.fetch('spriteScaleX'));
+            const sy = Math.ceil(spr.fetch('spriteHeight') * 0.01 * size) +
+                (0.45 + spr.fetch('spriteScaleY') - 1) * size;
             const drawSprite = (tx, tw, sx, sw) => {
                 if (tw <= 0 || sw <= 0) return;
-                ctx.drawImage(
-                    sprite.fetch('spriteAtlasImage'),
-                    tx,
-                    sprite.fetch('spriteOffsetY'),
-                    tw,
-                    sprite.fetch('spriteHeight'),
-                    sx, y, sw, sy
-                );
-                if (sx <= screenMiddle + crossHairSize - 1 && sx + sw >= screenMiddle - crossHairSize + 1) {
-                    sprite.store('playerCrossHair', (screenMiddle - sx) * tw / sw);
-                    playerCrosshairHit.push(sprite);
+                this._ctx.drawImage(spr.fetch('spriteAtlasImage'), tx,
+                    spr.fetch('spriteOffsetY'), tw, spr.fetch('spriteHeight'), sx, y, sw, sy);
+                if (sx <= screenMiddle + crossHairSize - 1 &&
+                    sx + sw >= screenMiddle - crossHairSize + 1) {
+                        spr.store('playerCrossHair', (screenMiddle - sx) * tw / sw);
+                        playerCrosshairHit.push(spr);
                 }
             };
-            const tx = sprite.fetch('spriteOffsetX');
-            const ts = sprite.fetch('spriteWidth');
-            let cumulativeDS = 0;
-            let cumulativeTS = 0;
-            const strips = sx / stripWidth;
+            const tx = spr.fetch('spriteOffsetX');
+            const ts = spr.fetch('spriteWidth');
+            let cumDS = 0;
+            let cumTS = 0;
+            const strips = sx / this._options.fetch('stripWidth');
             let drawing = false;
             let execute_draw = false;
-            sprite.store('hitList', []);
-            for (let j = 0; j < strips; j++) {
-                cumulativeDS += stripWidth;
-                cumulativeTS += Math.floor(cumulativeDS * sprite.fetch('spriteWidth') / sx);
-                cumulativeTS = cumulativeTS > sprite.fetch('spriteWidth') ?
-                    sprite.fetch('spriteWidth') : cumulativeTS;
-                const distIndex = Math.floor((x + cumulativeDS) * distArray.length / screenWidth);
+            spr.store('hitList', []);
+            for (let i = 0; i < strips; i++) {
+                cumDS += this._options.fetch('stripWidth');
+                cumTS += Math.floor(cumDS * spr.fetch('spriteWidth') / sx);
+                cumTS = cumTS > spr.fetch('spriteWidth') ? spr.fetch('spriteWidth') : cumTS;
+                const distIndex = Math.floor((x + cumDS) *
+                    distArray.length / this._options.fetch('screenWidth'));
                 const distWall = distArray[distIndex];
-                const distDelta = distWall - distSprite;
-                if (distWall === undefined || distDelat < -0.1 * distSprite) {
+                const distDelta = distWall - dist;
+                if (distWall === undefined || distDelta < -0.1 * dist) {
                     if (drawing) execute_draw = true;
                     drawing = false;
                 } else {
                     if (!drawing) {
                         drawing = true;
-                        x = x + cumulativeDS;
-                        tx = tx + cumulativeTS;
-                        cumulativeDS = 0;
-                        cumulativeTS = 0;
+                        x += cumDS;
+                        tx += cumTS;
+                        cumDS = 0;
+                        cumTS = 0;
                     }
                 }
                 if (execute_draw) {
-                    drawSprite(tx, cumulativeTS, x, cumulativeDS);
-                    sprite.fetch('hitList').push([tx, cumulativeTS, x, cumulativeDS]);
+                    drawSprite(tx, cumTS, x, cumDS);
+                    spr.fetch('hitList').push([tx, cumTS, x, cumDS]);
                     execute_draw = false;
                     drawing = false;
-                } else if (j + 1 >= strips && drawing) {
-                    drawSprite(tx, cumulativeTS, x, cumulativeDS);
-                    sprite.fetch('hitList').push([tx, cumulativeTS, x, cumulativeDS]);
+                } else if (i + 1 >= strips && drawing) {
+                    drawSprite(tx, cumTS, x, cumDS);
+                    spr.fetch('hitList').push([tx, cumTS, x, cumDS]);
                     break;
                 }
             }
-        }
+        });
         this._state.player.store('playerCrosshairHit', playerCrosshairHit);
     }
     castSingleRay(rayAngle, stripIdx) {
@@ -390,10 +342,8 @@ const Main = class {
         const slope_v = v_y / v_x;
         const dx_v = right ? 1 : -1;
         const dy_v = dx_v * slope_v;
-        let x_v = right ?
-            Math.ceil(this._state.player.fetch('x')) :
-            Math.floor(this._state.player.fetch('x'));
-        let y_v = this._state.player.fetch('y') + (x_v - this._state.player.fetch('x')) * slope_v;
+        let x_v = right ? Math.ceil(this._state.playerX) : Math.floor(this._state.playerX);
+        let y_v = this._state.playerY + (x_v - this._state.playerX) * slope_v;
         let do_v = true;
         let dist_v = -1;
         let xHit_v = 0;
@@ -402,10 +352,8 @@ const Main = class {
         const slope_h = v_x / v_y;
         const dy_h = up ? -1 : 1;
         const dx_h = dy_h * slope_h;
-        let y_h = up ?
-            Math.floor(this._state.player.fetch('y')) :
-            Math.ceil(this._state.player.fetch('y'));
-        let x_h = this._state.player.fetch('x') + (y_h - this._state.player.fetch('y')) * slope_h;
+        let y_h = up ? Math.floor(this._state.playerY) : Math.ceil(this._state.playerY);
+        let x_h = this._state.playerX + (y_h - this._state.playerY) * slope_h;
         let do_h = true;
         let dist_h = -1;
         let xHit_h = 0;
@@ -420,10 +368,10 @@ const Main = class {
             if (do_v) {
                 wallx_v = Math.floor(x_v + (right ? 0 : -1));
                 wally_v = Math.floor(y_v);
-                wallType_v = this._state.map[wally_v][wallx_v];
+                wallType_v = this._state.getWallType(wallx_v, wally_v);
                 if (wallType_v) {
-                    distx = x_v - this._state.player.fetch('x');
-                    disty = y_v - this._state.player.fetch('y');
+                    distx = x_v - this._state.playerX;
+                    disty = y_v - this._state.playerY;
                     dist_v = distx * distx + disty * disty;
                     xHit_v = x_v;
                     yHit_v = y_v;
@@ -438,10 +386,10 @@ const Main = class {
                 wally_h = Math.floor(y_h + (up ? -1 : 0));
                 wally_h = wally_h < 0 ? 0 : wally_h;
                 wallx_h = Math.floor(x_h);
-                wallType_h = this._state.map[wally_h][wallx_h];
+                wallType_h = this._state.getWallType(wallx_h, wally_h);
                 if (wallType_h) {
-                    distx = x_h - this._state.player.fetch('x');
-                    disty = y_h - this._state.player.fetch('y');
+                    distx = x_h - this._state.playerX;
+                    disty = y_h - this._state.playerY;
                     dist_h = distx * distx + disty * disty;
                     xHit_h = x_h;
                     yHit_h = y_h;
@@ -483,19 +431,19 @@ const Main = class {
         const fheight = (screenHeight - height) / 2;
         const foffset = y + height;
         const fweight = (this._options.fetch('screenWidth') / screenHeight) * this._fovFloorWeight;
-        const vx = (hitX - this._state.player.fetch('x')) / dist;
-        const vy = (hitY - this._state.player.fetch('y')) / dist;
+        const vx = (hitX - this._state.playerX) / dist;
+        const vy = (hitY - this._state.playerY) / dist;
         const bottom = foffset + fheight;
         for (let fy = 0; fy < fheight; fy++) {
             const currentDist = bottom / (2 * (fy + foffset) - bottom);
-            const wx = this._state.player.fetch('x') + vx * currentDist * fweight;
-            const wy = this._state.player.fetch('y') + vy * currentDist * fweight;
+            const wx = this._state.playerX + vx * currentDist * fweight;
+            const wy = this._state.playerY + vy * currentDist * fweight;
             const mx = Math.floor(wx);
             const my = Math.floor(wy);
-            const floorType = this._state.map[my][mx];
+            const floorType = this._state.getWallType(mx, my);
             const floorTexturex = (wx * textureWidth) % textureWidth;
             const floorTexturey = (wy * textureHeight) % textureHeight;
-            if (floorType) continue;
+            if (floorType > 0) continue;
             textureOffset = this._options.fetch('floorCeilingTextureMapping')[floorType];
             const textureOffset_floor_h = textureOffset ? textureOffset[0][0] : 0;
             const textureOffset_floor_v = textureOffset ? textureOffset[0][1] : 0;
@@ -522,7 +470,7 @@ const Main = class {
         const ctx = this._ctx;
         const screenHeight = this._options.fetch('screenHeight');
         const screenWidth = this._options.fetch('screenWidth');
-        let xoffset = this._state.player.fetch('rot');
+        let xoffset = this._state.playerRot;
         xoffset %= Math.PI * 2;
         if (xoffset < 0) xoffset += Math.PI * 2;
         let rot = xoffset * (img.width / (Math.PI * 2));
@@ -542,8 +490,8 @@ const Main = class {
         ctx.lineWidth = 0.5;
         ctx.beginPath();
         ctx.moveTo(
-            this._state.player.fetch('x') * this._options.fetch('minimapScale'),
-            this._state.player.fetch('y') * this._options.fetch('minimapScale')
+            this._state.playerX * this._options.fetch('minimapScale'),
+            this._state.playerY * this._options.fetch('minimapScale')
         );
         ctx.lineTo(
             rayX * this._options.fetch('minimapScale'),
